@@ -348,6 +348,77 @@ static struct emif_regs ddr3_emif_reg_data = {
 	.zq_config = MT41J128MJT125_ZQ_CFG,
 	.emif_ddr_phy_ctlr_1 = MT41J128MJT125_EMIF_READ_LATENCY,
 };
+
+void am33xx_spl_board_init(void)
+{
+	if (!strncmp("A335BONE", header.name, 8)) {
+		/* BeagleBone PMIC Code */
+		uchar pmic_status_reg;
+
+		if (i2c_probe(TPS65217_CHIP_PM))
+			return;
+
+		if (tps65217_reg_read(STATUS, &pmic_status_reg))
+			return;
+
+		/* Increase USB current limit to 1300mA */
+		if (tps65217_reg_write(PROT_LEVEL_NONE, POWER_PATH,
+				       USB_INPUT_CUR_LIMIT_1300MA,
+				       USB_INPUT_CUR_LIMIT_MASK))
+			printf("tps65217_reg_write failure\n");
+
+		/* Only perform PMIC configurations if board rev > A1 */
+		if (!strncmp(header.version, "00A1", 4))
+			return;
+
+		/* Set DCDC2 (MPU) voltage to 1.275V */
+		if (tps65217_voltage_update(DEFDCDC2,
+					     DCDC_VOLT_SEL_1275MV)) {
+			printf("tps65217_voltage_update failure\n");
+			return;
+		}
+
+		/* Set LDO3, LDO4 output voltage to 3.3V */
+		if (tps65217_reg_write(PROT_LEVEL_2, DEFLS1,
+				       LDO_VOLTAGE_OUT_3_3, LDO_MASK))
+			printf("tps65217_reg_write failure\n");
+
+		if (tps65217_reg_write(PROT_LEVEL_2, DEFLS2,
+				       LDO_VOLTAGE_OUT_3_3, LDO_MASK))
+			printf("tps65217_reg_write failure\n");
+
+		if (!(pmic_status_reg & PWR_SRC_AC_BITMASK)) {
+			printf("No AC power, disabling frequency switch\n");
+			return;
+		}
+
+		/* Set MPU Frequency to 720MHz */
+		mpu_pll_config(MPUPLL_M_720);
+	} else {
+		uchar buf[4];
+		/*
+		 * EVM PMIC code.  All boards currently want an MPU voltage
+		 * of 1.2625V and CORE voltage of 1.1375V to operate at
+		 * 720MHz.
+		 */
+		if (i2c_probe(PMIC_CTRL_I2C_ADDR))
+			return;
+
+		/* VDD1/2 voltage selection register access by control i/f */
+		if (i2c_read(PMIC_CTRL_I2C_ADDR, PMIC_DEVCTRL_REG, 1, buf, 1))
+			return;
+
+		buf[0] |= PMIC_DEVCTRL_REG_SR_CTL_I2C_SEL_CTL_I2C;
+
+		if (i2c_write(PMIC_CTRL_I2C_ADDR, PMIC_DEVCTRL_REG, 1, buf, 1))
+			return;
+
+		if (!voltage_update(MPU, PMIC_OP_REG_SEL_1_2_6) &&
+				!voltage_update(CORE, PMIC_OP_REG_SEL_1_1_3))
+			/* Frequency switching for OPP 120 */
+			mpu_pll_config(MPUPLL_M_720);
+	}
+}
 #endif
 
 /*

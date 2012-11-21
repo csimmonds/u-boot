@@ -55,6 +55,9 @@ void spl_board_init(void)
 #ifdef CONFIG_SPL_NAND_SUPPORT
 	gpmc_init();
 #endif
+#ifdef CONFIG_AM33XX
+	am33xx_spl_board_init();
+#endif
 }
 
 int board_mmc_init(bd_t *bis)
