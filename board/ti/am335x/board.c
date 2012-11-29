@@ -414,9 +414,12 @@ void am33xx_spl_board_init(void)
 			return;
 
 		if (!voltage_update(MPU, PMIC_OP_REG_SEL_1_2_6) &&
-				!voltage_update(CORE, PMIC_OP_REG_SEL_1_1_3))
-			/* Frequency switching for OPP 120 */
-			mpu_pll_config(MPUPLL_M_720);
+				!voltage_update(CORE, PMIC_OP_REG_SEL_1_1_3)) {
+			if (board_is_evm_15_or_later())
+				mpu_pll_config(MPUPLL_M_800);
+			else
+				mpu_pll_config(MPUPLL_M_720);
+		}
 	}
 }
 #endif
