@@ -42,6 +42,7 @@ static inline void invalidate_l2_cache(void)
 void l2_cache_enable(void);
 void l2_cache_disable(void);
 
+void dram_bank_mmu_setup(int bank);
 /*
  * The current upper bound for ARM L1 data cache line sizes is 64 bytes.  We
  * use that value for aligning DMA buffers unless the board config has specified
