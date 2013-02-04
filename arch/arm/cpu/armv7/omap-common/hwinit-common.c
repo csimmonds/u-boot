@@ -34,6 +34,7 @@
 #include <asm/emif.h>
 #include <asm/cache.h>
 #include <asm/system.h>
+#include <asm/omap_common.h>
 
 #define ARMV7_DCACHE_WRITEBACK  0xe
 #define	ARMV7_DOMAIN_CLIENT	1
@@ -122,6 +123,8 @@ void spl_display_print(void)
 void s_init(void)
 {
 	init_omap_revision();
+	hw_data_init();
+
 #ifdef CONFIG_SPL_BUILD
 	if (warm_reset() && (omap_revision() <= OMAP5430_ES1_0))
 		force_emif_self_refresh();
