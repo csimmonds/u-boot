@@ -50,18 +50,15 @@ static struct mmc hsmmc_dev[2];
 static void omap4_vmmc_pbias_config(struct mmc *mmc)
 {
 	u32 value = 0;
-	struct omap_sys_ctrl_regs *const ctrl =
-		(struct omap_sys_ctrl_regs *) SYSCTRL_GENERAL_CORE_BASE;
 
-
-	value = readl(&ctrl->control_pbiaslite);
+	value = readl((*ctrl)->control_pbiaslite);
 	value &= ~(MMC1_PBIASLITE_PWRDNZ | MMC1_PWRDNZ);
-	writel(value, &ctrl->control_pbiaslite);
+	writel(value, (*ctrl)->control_pbiaslite);
 	/* set VMMC to 3V */
 	twl6030_power_mmc_init();
-	value = readl(&ctrl->control_pbiaslite);
+	value = readl((*ctrl)->control_pbiaslite);
 	value |= MMC1_PBIASLITE_VMODE | MMC1_PBIASLITE_PWRDNZ | MMC1_PWRDNZ;
-	writel(value, &ctrl->control_pbiaslite);
+	writel(value, (*ctrl)->control_pbiaslite);
 }
 #endif
 
@@ -69,26 +66,24 @@ static void omap4_vmmc_pbias_config(struct mmc *mmc)
 static void omap5_pbias_config(struct mmc *mmc)
 {
 	u32 value = 0;
-	struct omap_sys_ctrl_regs *const ctrl =
-		(struct omap_sys_ctrl_regs *) SYSCTRL_GENERAL_CORE_BASE;
 
-	value = readl(&ctrl->control_pbias);
+	value = readl((*ctrl)->control_pbias);
 	value &= ~(SDCARD_PWRDNZ | SDCARD_BIAS_PWRDNZ);
 	value |= SDCARD_BIAS_HIZ_MODE;
-	writel(value, &ctrl->control_pbias);
+	writel(value, (*ctrl)->control_pbias);
 
 	twl6035_mmc1_poweron_ldo();
 
-	value = readl(&ctrl->control_pbias);
+	value = readl((*ctrl)->control_pbias);
 	value &= ~SDCARD_BIAS_HIZ_MODE;
 	value |= SDCARD_PBIASLITE_VMODE | SDCARD_PWRDNZ | SDCARD_BIAS_PWRDNZ;
-	writel(value, &ctrl->control_pbias);
+	writel(value, (*ctrl)->control_pbias);
 
-	value = readl(&ctrl->control_pbias);
+	value = readl((*ctrl)->control_pbias);
 	if (value & (1 << 23)) {
 		value &= ~(SDCARD_PWRDNZ | SDCARD_BIAS_PWRDNZ);
 		value |= SDCARD_BIAS_HIZ_MODE;
-		writel(value, &ctrl->control_pbias);
+		writel(value, (*ctrl)->control_pbias);
 	}
 }
 #endif
