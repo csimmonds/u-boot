@@ -178,7 +178,11 @@ struct watchdog {
 
 /* PRM */
 #define PRM_BASE		0x4AE06000
+#ifndef CONFIG_DRA7XX
 #define PRM_DEVICE_BASE		(PRM_BASE + 0x1B00)
+#else
+#define PRM_DEVICE_BASE		(PRM_BASE + 0x1D00)
+#endif
 
 #define PRM_RSTCTRL		PRM_DEVICE_BASE
 #define PRM_RSTCTRL_RESET	0x01
