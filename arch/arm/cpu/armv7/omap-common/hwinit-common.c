@@ -35,6 +35,7 @@
 #include <asm/cache.h>
 #include <asm/system.h>
 #include <asm/omap_common.h>
+#include <linux/compiler.h>
 
 #define ARMV7_DCACHE_WRITEBACK  0xe
 #define	ARMV7_DOMAIN_CLIENT	1
@@ -106,6 +107,10 @@ void spl_display_print(void)
 }
 #endif
 
+void __weak srcomp_enable(void)
+{
+}
+
 /*
  * Routine: s_init
  * Description: Does early system init of watchdog, muxing,  andclocks
@@ -132,6 +137,7 @@ void s_init(void)
 	watchdog_init();
 	set_mux_conf_regs();
 #ifdef CONFIG_SPL_BUILD
+	srcomp_enable();
 	setup_clocks_for_console();
 
 	gd = &gdata;
