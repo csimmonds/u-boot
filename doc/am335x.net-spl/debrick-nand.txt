@@ -1,0 +1,12 @@
+# erase NAND
+nand erase.chip
+# get MLO
+tftp 0x81000000 MLO
+# make 4 copies in the RAM
+cp.b 0x81000000 0x81020000 20000
+cp.b 0x81000000 0x81040000 20000
+cp.b 0x81000000 0x81060000 20000
+# get u-boot.img
+tftp 0x81080000 u-boot.img
+# write the whole block (4*MLO + u-boot.img) to NAND
+nand write 0x81000000 0x0 0x260000

@@ -1,0 +1,13 @@
+# NOTE: 'loadaddr' is part of the default environment
+# Probe the chip
+sf probe 0
+# Erase SPL, U-Boot and U-Boot Environment
+sf erase 0 +80000
+# get MLO.spi
+tftp ${loadaddr} MLO.spi
+# Write to SPI
+sf write ${loadaddr} 0x0 0x20000
+# get u-boot.img
+tftp ${loadaddr} u-boot.bin
+# Write to SPI
+sf write ${loadaddr} 0x20000 0x40000
