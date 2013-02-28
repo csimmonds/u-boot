@@ -54,10 +54,11 @@
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x80200000\0" \
+	"kloadaddr=0x80007fc0\0" \
 	"fdtaddr=0x80F80000\0" \
 	"fdt_high=0xffffffff\0" \
 	"rdaddr=0x81000000\0" \
-	"bootfile=/boot/uImage\0" \
+	"bootfile=uImage\0" \
 	"fdtfile=\0" \
 	"console=ttyO0,115200n8\0" \
 	"optargs=\0" \
@@ -79,10 +80,14 @@
 		"::off\0" \
 	"ramroot=/dev/ram0 rw ramdisk_size=65536 initrd=${rdaddr},64M\0" \
 	"ramrootfstype=ext2\0" \
-	"mmcargs=setenv bootargs console=${console} " \
-		"${optargs} " \
+	"ip_method=none\0" \
+	"bootargs_defaults=setenv bootargs " \
+		"console=${console} " \
+		"${optargs}\0" \
+	"mmcargs=run bootargs_defaults;" \
+		"setenv bootargs ${bootargs} " \
 		"root=${mmcroot} " \
-		"rootfstype=${mmcrootfstype}\0" \
+		"rootfstype=${mmcrootfstype} ip=${ip_method}\0" \
 	"nandargs=setenv bootargs console=${console} " \
 		"${optargs} " \
 		"root=${nandroot} " \
@@ -110,11 +115,11 @@
 		"root=${ramroot} " \
 		"rootfstype=${ramrootfstype}\0" \
 	"loadramdisk=fatload mmc ${mmcdev} ${rdaddr} ramdisk.gz\0" \
-	"loaduimagefat=fatload mmc ${mmcdev} ${loadaddr} ${bootfile}\0" \
-	"loaduimage=ext2load mmc ${mmcdev}:2 ${loadaddr} ${bootfile}\0" \
+	"loaduimagefat=fatload mmc ${mmcdev} ${kloadaddr} ${bootfile}\0" \
+	"loaduimage=ext2load mmc ${mmcdev}:2 ${kloadaddr} /boot/${bootfile}\0" \
 	"mmcboot=echo Booting from mmc ...; " \
 		"run mmcargs; " \
-		"bootm ${loadaddr}\0" \
+		"bootm ${kloadaddr}\0" \
 	"nandboot=echo Booting from nand ...; " \
 		"run nandargs; " \
 		"nand read ${loadaddr} ${nandsrcaddr} ${nandimgsize}; " \
@@ -154,8 +159,12 @@
 			"echo Running uenvcmd ...;" \
 			"run uenvcmd;" \
 		"fi;" \
-		"if run loaduimage; then " \
+		"if run loaduimagefat; then " \
 			"run mmcboot;" \
+		"elif run loaduimage; then " \
+			"run mmcboot;" \
+		"else " \
+			"echo Could not find ${bootfile} ;" \
 		"fi;" \
 	"else " \
 		"run nandboot;" \
