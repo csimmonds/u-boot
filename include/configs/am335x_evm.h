@@ -148,6 +148,7 @@
 
 #endif
 
+#ifndef CONFIG_RESTORE_FLASH
 #define CONFIG_BOOTCOMMAND \
 	"mmc dev ${mmcdev}; if mmc rescan; then " \
 		"echo SD/MMC found on device ${mmcdev};" \
@@ -169,6 +170,20 @@
 	"else " \
 		"run nandboot;" \
 	"fi;" \
+
+#else
+
+#undef CONFIG_BOOTDELAY
+#define CONFIG_BOOTDELAY	0
+
+#define CONFIG_BOOTCOMMAND \
+	"setenv autoload no; " \
+	"setenv ethact usb_ether; " \
+	"dhcp; "	\
+	"if tftp 80000000 debrick.scr; then "	\
+		"source 80000000; "	\
+	"fi"
+#endif
 
 /* Clock Defines */
 #define V_OSCK				24000000  /* Clock output from T2 */
