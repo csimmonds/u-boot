@@ -57,8 +57,8 @@ static inline unsigned int get_mmc_blk_size(int dev)
 	return find_mmc_device(dev)->read_bl_len;
 }
 
-#define DFU_NAME_SIZE 32
-#define DFU_CMD_BUF_SIZE 128
+#define DFU_NAME_SIZE			32
+#define DFU_CMD_BUF_SIZE		128
 #define DFU_DATA_BUF_SIZE		(64 << 10)	/* 64 KiB */
 #ifndef CONFIG_SYS_DFU_MAX_FILE_SIZE
 #define CONFIG_SYS_DFU_MAX_FILE_SIZE	(4 << 20)	/* 4 MiB */
