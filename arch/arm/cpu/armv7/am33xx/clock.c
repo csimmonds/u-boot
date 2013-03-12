@@ -212,7 +212,7 @@ static void enable_per_clocks(void)
 		;
 }
 
-static void mpu_pll_config(void)
+void mpu_pll_config(int mpupll_M)
 {
 	u32 clkmode, clksel, div_m2;
 
@@ -226,7 +226,7 @@ static void mpu_pll_config(void)
 		;
 
 	clksel = clksel & (~CLK_SEL_MASK);
-	clksel = clksel | ((MPUPLL_M << CLK_SEL_SHIFT) | MPUPLL_N);
+	clksel = clksel | ((mpupll_M << CLK_SEL_SHIFT) | MPUPLL_N);
 	writel(clksel, &cmwkup->clkseldpllmpu);
 
 	div_m2 = div_m2 & ~CLK_DIV_MASK;
@@ -359,7 +359,8 @@ void enable_emif_clocks(void)
  */
 void pll_init()
 {
-	mpu_pll_config();
+	/* Start at 550MHz, will be tweaked up if possible. */
+	mpu_pll_config(MPUPLL_M_550);
 	core_pll_config();
 	per_pll_config();
 

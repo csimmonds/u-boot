@@ -34,6 +34,8 @@
 #include <miiphy.h>
 #include <cpsw.h>
 #include "board.h"
+#include "pmic.h"
+#include "tps65217.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -128,6 +130,132 @@ static int read_eeprom(void)
 
 /* UART Defines */
 #ifdef CONFIG_SPL_BUILD
+/**
+ * tps65217_reg_read() - Generic function that can read a TPS65217 register
+ * @src_reg:          Source register address
+ * @src_val:          Address of destination variable
+ */
+
+unsigned char tps65217_reg_read(uchar src_reg, uchar *src_val)
+{
+        if (i2c_read(TPS65217_CHIP_PM, src_reg, 1, src_val, 1))
+                return 1;
+        return 0;
+}
+
+/**
+ *  tps65217_reg_write() - Generic function that can write a TPS65217 PMIC
+ *                         register or bit field regardless of protection
+ *                         level.
+ *
+ *  @prot_level:        Register password protection.
+ *                      use PROT_LEVEL_NONE, PROT_LEVEL_1, or PROT_LEVEL_2
+ *  @dest_reg:          Register address to write.
+ *  @dest_val:          Value to write.
+ *  @mask:              Bit mask (8 bits) to be applied.  Function will only
+ *                      change bits that are set in the bit mask.
+ *
+ *  @return:            0 for success, 1 for failure.
+ */
+int tps65217_reg_write(uchar prot_level, uchar dest_reg,
+        uchar dest_val, uchar mask)
+{
+        uchar read_val;
+        uchar xor_reg;
+
+        /* if we are affecting only a bit field, read dest_reg and apply the mask */
+        if (mask != MASK_ALL_BITS) {
+                if (i2c_read(TPS65217_CHIP_PM, dest_reg, 1, &read_val, 1))
+                        return 1;
+                read_val &= (~mask);
+                read_val |= (dest_val & mask);
+                dest_val = read_val;
+        }
+
+        if (prot_level > 0) {
+                xor_reg = dest_reg ^ PASSWORD_UNLOCK;
+                if (i2c_write(TPS65217_CHIP_PM, PASSWORD, 1, &xor_reg, 1))
+                        return 1;
+        }
+
+        if (i2c_write(TPS65217_CHIP_PM, dest_reg, 1, &dest_val, 1))
+                return 1;
+
+        if (prot_level == PROT_LEVEL_2) {
+                if (i2c_write(TPS65217_CHIP_PM, PASSWORD, 1, &xor_reg, 1))
+                        return 1;
+
+                if (i2c_write(TPS65217_CHIP_PM, dest_reg, 1, &dest_val, 1))
+                        return 1;
+        }
+
+        return 0;
+}
+
+int tps65217_voltage_update(unsigned char dc_cntrl_reg, unsigned char volt_sel)
+{
+        if ((dc_cntrl_reg != DEFDCDC1) && (dc_cntrl_reg != DEFDCDC2)
+                && (dc_cntrl_reg != DEFDCDC3))
+                return 1;
+
+        /* set voltage level */
+        if (tps65217_reg_write(PROT_LEVEL_2, dc_cntrl_reg, volt_sel, MASK_ALL_BITS))
+                return 1;
+
+        /* set GO bit to initiate voltage transition */
+        if (tps65217_reg_write(PROT_LEVEL_2, DEFSLEW, DCDC_GO, DCDC_GO))
+                return 1;
+
+        return 0;
+}
+
+/*
+ * voltage switching for MPU frequency switching.
+ * @module = mpu - 0, core - 1
+ * @vddx_op_vol_sel = vdd voltage to set
+ */
+
+#define MPU     0
+#define CORE    1
+
+int voltage_update(unsigned int module, unsigned char vddx_op_vol_sel)
+{
+        uchar buf[4];
+        unsigned int reg_offset;
+
+        if(module == MPU)
+                reg_offset = PMIC_VDD1_OP_REG;
+        else
+                reg_offset = PMIC_VDD2_OP_REG;
+
+        /* Select VDDx OP   */
+        if (i2c_read(PMIC_CTRL_I2C_ADDR, reg_offset, 1, buf, 1))
+                return 1;
+
+        buf[0] &= ~PMIC_OP_REG_CMD_MASK;
+
+        if (i2c_write(PMIC_CTRL_I2C_ADDR, reg_offset, 1, buf, 1))
+                return 1;
+
+        /* Configure VDDx OP  Voltage */
+        if (i2c_read(PMIC_CTRL_I2C_ADDR, reg_offset, 1, buf, 1))
+                return 1;
+
+        buf[0] &= ~PMIC_OP_REG_SEL_MASK;
+        buf[0] |= vddx_op_vol_sel;
+
+        if (i2c_write(PMIC_CTRL_I2C_ADDR, reg_offset, 1, buf, 1))
+                return 1;
+
+        if (i2c_read(PMIC_CTRL_I2C_ADDR, reg_offset, 1, buf, 1))
+                return 1;
+
+        if ((buf[0] & PMIC_OP_REG_SEL_MASK ) != vddx_op_vol_sel)
+                return 1;
+
+        return 0;
+}
+
 #define UART_RESET		(0x1 << 1)
 #define UART_CLK_RUNNING_MASK	0x1
 #define UART_SMART_IDLE_EN	(0x1 << 0x3)
@@ -263,6 +391,80 @@ static struct emif_regs ddr3_evm_emif_reg_data = {
 	.zq_config = MT41J512M8RH125_ZQ_CFG,
 	.emif_ddr_phy_ctlr_1 = MT41J512M8RH125_EMIF_READ_LATENCY,
 };
+
+void am33xx_spl_board_init(void)
+{
+	if (!strncmp("A335BONE", header.name, 8)) {
+		/* BeagleBone PMIC Code */
+		uchar pmic_status_reg;
+
+		if (i2c_probe(TPS65217_CHIP_PM))
+			return;
+
+		if (tps65217_reg_read(STATUS, &pmic_status_reg))
+			return;
+
+		/* Increase USB current limit to 1300mA */
+		if (tps65217_reg_write(PROT_LEVEL_NONE, POWER_PATH,
+				       USB_INPUT_CUR_LIMIT_1300MA,
+				       USB_INPUT_CUR_LIMIT_MASK))
+			printf("tps65217_reg_write failure\n");
+
+		/* Only perform PMIC configurations if board rev > A1 */
+		if (!strncmp(header.version, "00A1", 4))
+			return;
+
+		/* Set DCDC2 (MPU) voltage to 1.275V */
+		if (tps65217_voltage_update(DEFDCDC2,
+					     DCDC_VOLT_SEL_1275MV)) {
+			printf("tps65217_voltage_update failure\n");
+			return;
+		}
+
+		/* Set LDO3, LDO4 output voltage to 3.3V */
+		if (tps65217_reg_write(PROT_LEVEL_2, DEFLS1,
+				       LDO_VOLTAGE_OUT_3_3, LDO_MASK))
+			printf("tps65217_reg_write failure\n");
+
+		if (tps65217_reg_write(PROT_LEVEL_2, DEFLS2,
+				       LDO_VOLTAGE_OUT_3_3, LDO_MASK))
+			printf("tps65217_reg_write failure\n");
+
+		if (!(pmic_status_reg & PWR_SRC_AC_BITMASK)) {
+			printf("No AC power, disabling frequency switch\n");
+			return;
+		}
+
+		/* Set MPU Frequency to 720MHz */
+		mpu_pll_config(MPUPLL_M_720);
+	} else {
+		uchar buf[4];
+		/*
+		 * EVM PMIC code.  All boards currently want an MPU voltage
+		 * of 1.2625V and CORE voltage of 1.1375V to operate at
+		 * 720MHz.
+		 */
+		if (i2c_probe(PMIC_CTRL_I2C_ADDR))
+			return;
+
+		/* VDD1/2 voltage selection register access by control i/f */
+		if (i2c_read(PMIC_CTRL_I2C_ADDR, PMIC_DEVCTRL_REG, 1, buf, 1))
+			return;
+
+		buf[0] |= PMIC_DEVCTRL_REG_SR_CTL_I2C_SEL_CTL_I2C;
+
+		if (i2c_write(PMIC_CTRL_I2C_ADDR, PMIC_DEVCTRL_REG, 1, buf, 1))
+			return;
+
+		if (!voltage_update(MPU, PMIC_OP_REG_SEL_1_2_6) &&
+				!voltage_update(CORE, PMIC_OP_REG_SEL_1_1_3)) {
+			if (board_is_evm_15_or_later())
+				mpu_pll_config(MPUPLL_M_800);
+			else
+				mpu_pll_config(MPUPLL_M_720);
+		}
+	}
+}
 #endif
 
 /*
