@@ -221,6 +221,7 @@ static int ep0_get_descriptor (struct usb_device_instance *device,
 		break;
 
 	case USB_DESCRIPTOR_TYPE_CONFIGURATION:
+	case USB_DESCRIPTOR_TYPE_OTHER_SPEED_CONFIGURATION:
 		{
 			struct usb_configuration_descriptor
 				*configuration_descriptor;
