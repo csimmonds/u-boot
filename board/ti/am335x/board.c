@@ -346,7 +346,8 @@ static struct emif_regs ddr3_emif_reg_data = {
 	.sdram_tim2 = MT41J128MJT125_EMIF_TIM2,
 	.sdram_tim3 = MT41J128MJT125_EMIF_TIM3,
 	.zq_config = MT41J128MJT125_ZQ_CFG,
-	.emif_ddr_phy_ctlr_1 = MT41J128MJT125_EMIF_READ_LATENCY,
+	.emif_ddr_phy_ctlr_1 = MT41J128MJT125_EMIF_READ_LATENCY |
+				PHY_EN_DYN_PWRDN,
 };
 
 void am33xx_spl_board_init(void)
