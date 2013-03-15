@@ -176,6 +176,7 @@
 #undef CONFIG_BOOTDELAY
 #define CONFIG_BOOTDELAY	0
 
+#ifdef CONFIG_SPL_USBETH_SUPPORT
 #define CONFIG_BOOTCOMMAND \
 	"setenv autoload no; " \
 	"setenv ethact usb_ether; " \
@@ -183,6 +184,15 @@
 	"if tftp 80000000 debrick.scr; then "	\
 		"source 80000000; "	\
 	"fi"
+#else
+#define CONFIG_BOOTCOMMAND \
+	"setenv autoload no; " \
+	"setenv ethact cpsw; " \
+	"dhcp; "	\
+	"if tftp 80000000 debrick.scr; then "	\
+		"source 80000000; "	\
+	"fi"
+#endif
 #endif
 
 /* Clock Defines */
