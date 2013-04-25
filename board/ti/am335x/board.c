@@ -40,7 +40,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 static struct wd_timer *wdtimer = (struct wd_timer *)WDT_BASE;
-#ifdef CONFIG_SPL_BUILD
+#if defined(CONFIG_SPL_BUILD) || (CONFIG_NOR_BOOT)
 static struct uart_sys *uart_base = (struct uart_sys *)DEFAULT_UART_BASE;
 #endif
 
@@ -129,7 +129,7 @@ static int read_eeprom(void)
 }
 
 /* UART Defines */
-#ifdef CONFIG_SPL_BUILD
+#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT)
 /**
  * tps65217_reg_read() - Generic function that can read a TPS65217 register
  * @src_reg:          Source register address
@@ -522,6 +522,20 @@ void am33xx_spl_board_init(void)
  */
 void s_init(void)
 {
+	__maybe_unused struct am335x_baseboard_id header;
+#ifdef CONFIG_NOR_BOOT
+	asm("stmfd      sp!, {r2 - r4}");
+	asm("movw       r4, #0x8A4");
+	asm("movw       r3, #0x44E1");
+	asm("orr        r4, r4, r3, lsl #16");
+	asm("mov        r2, #9");
+	asm("mov        r3, #8");
+	asm("gpmc_mux:  str     r2, [r4], #4");
+	asm("subs       r3, r3, #1");
+	asm("bne        gpmc_mux");
+	asm("ldmfd      sp!, {r2 - r4}");
+#endif
+
 	/* WDT1 is already running when the bootloader gets control
 	 * Disable it to avoid "random" resets
 	 */
@@ -532,7 +546,7 @@ void s_init(void)
 	while (readl(&wdtimer->wdtwwps) != 0x0)
 		;
 
-#ifdef CONFIG_SPL_BUILD
+#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT)
 	/* Setup the PLLs and the clocks for the peripherals */
 	pll_init();
 
@@ -573,18 +587,59 @@ void s_init(void)
 	regVal |= UART_SMART_IDLE_EN;
 	writel(regVal, &uart_base->uartsyscfg);
 
+#if defined(CONFIG_NOR_BOOT)
+	gd = (gd_t *) ((CONFIG_SYS_INIT_SP_ADDR) & ~0x07);
+	gd->baudrate = CONFIG_BAUDRATE;
+	serial_init();
+	gd->have_console = 1;
+#else
 	gd = &gdata;
 
 	preloader_console_init();
+#endif
 
 	/* Initalize the board header */
 	enable_i2c0_pin_mux();
 	i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
+#ifndef CONFIG_NOR_BOOT
 	if (read_eeprom() < 0)
 		puts("Could not get board ID.\n");
+#endif
+
+	/* Check if baseboard eeprom is available */
+	if (i2c_probe(CONFIG_SYS_I2C_EEPROM_ADDR)) {
+		puts("Could not probe the EEPROM; something fundamentally "
+			"wrong on the I2C bus.\n");
+	}
+
+	/* read the eeprom using i2c */
+	if (i2c_read(CONFIG_SYS_I2C_EEPROM_ADDR, 0, 2, (uchar *)&header,
+							sizeof(header))) {
+		puts("Could not read the EEPROM; something fundamentally"
+			" wrong on the I2C bus.\n");
+	}
+
+	if (header.magic != 0xEE3355AA) {
+		/*
+		 * read the eeprom using i2c again,
+		 * but use only a 1 byte address
+		 */
+		if (i2c_read(CONFIG_SYS_I2C_EEPROM_ADDR, 0, 1,
+					(uchar *)&header, sizeof(header))) {
+			puts("Could not read the EEPROM; something "
+				"fundamentally wrong on the I2C bus.\n");
+			hang();
+		}
+
+		if (header.magic != 0xEE3355AA) {
+			printf("Incorrect magic number (0x%x) in EEPROM\n",
+					header.magic);
+			hang();
+		}
+	}
 
 	enable_board_pin_mux(&header);
-	if (board_is_evm_sk()) {
+	if (!strncmp("A335X_SK", header.name, HDR_NAME_LEN)) {
 		/*
 		 * EVM SK 1.2A and later use gpio0_7 to enable DDR3.
 		 * This is safe enough to do on older revs.
@@ -593,10 +648,16 @@ void s_init(void)
 		gpio_direction_output(GPIO_DDR_VTT_EN, 1);
 	}
 
-	if (board_is_evm_sk() || board_is_bone_lt())
+#ifdef CONFIG_NOR_BOOT
+	am33xx_spl_board_init();
+#endif
+
+	if ((!strncmp("A335X_SK", header.name, HDR_NAME_LEN)) ||
+			 (!strncmp("A335BNLT", header.name, 8)))
 		config_ddr(303, MT41J128MJT125_IOCTRL_VALUE, &ddr3_data,
 			   &ddr3_cmd_ctrl_data, &ddr3_emif_reg_data);
-	else if (board_is_evm_15_or_later())
+	else if (!strncmp("A33515BB", header.name, 8) &&
+				strncmp("1.5", header.version, 3) <= 0)
 		config_ddr(303, MT41J512M8RH125_IOCTRL_VALUE, &ddr3_evm_data,
 			   &ddr3_evm_cmd_ctrl_data, &ddr3_evm_emif_reg_data);
 	else
