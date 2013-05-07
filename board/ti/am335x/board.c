@@ -416,6 +416,14 @@ void am33xx_spl_board_init(void)
 			mpu_pll = MPUPLL_M_800;
 	}
 
+	/*
+	 * HACK: The incorrect DDR timings currently used in this
+	 * version of U-Boot may work in some cases at the default MPU
+	 * clock speed but do _NOT_ work when ramped up to maximum.
+	 */
+	if (board_is_bone_lt())
+		return;
+
 	if (board_is_bone() || board_is_bone_lt()) {
 		/* BeagleBone PMIC Code */
 		uchar pmic_status_reg;
