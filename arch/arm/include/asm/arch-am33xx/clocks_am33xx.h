@@ -21,7 +21,8 @@
 
 #define OSC	(V_OSCK/1000000)
 
-/* MAIN PLL Fdll = 550MHz, 720MHz or 800MHz */
+/* MAIN PLL Fdll = 550MHz, 720MHz, 800MHz or 1GHz */
+#define MPUPLL_M_1000	1000
 #define MPUPLL_M_800	800
 #define MPUPLL_M_720	720
 #define MPUPLL_M_550	550

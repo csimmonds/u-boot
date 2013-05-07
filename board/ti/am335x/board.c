@@ -395,9 +395,35 @@ static struct emif_regs ddr3_evm_emif_reg_data = {
 
 void am33xx_spl_board_init(void)
 {
-	if (!strncmp("A335BONE", header.name, 8)) {
+	int mpu_vdd, mpu_pll, sil_rev;
+
+	/* Assume PG 1.0 */
+	mpu_pll = MPUPLL_M_720;
+
+	sil_rev = readl(&cdev->deviceid) >> 28;
+	if (sil_rev == 1)
+		/* PG 2.0, efuse may not be set. */
+		mpu_pll = MPUPLL_M_800;
+	else if (sil_rev >= 2) {
+		/* Check what the efuse says our max speed is. */
+		int efuse_arm_mpu_max_freq;
+		efuse_arm_mpu_max_freq = readl(&cdev->efuse_sma);
+		if ((efuse_arm_mpu_max_freq & DEVICE_ID_MASK) ==
+				AM335X_ZCZ_1000)
+			mpu_pll = MPUPLL_M_1000;
+		else if ((efuse_arm_mpu_max_freq & DEVICE_ID_MASK) ==
+				AM335X_ZCZ_800)
+			mpu_pll = MPUPLL_M_800;
+	}
+
+	if (board_is_bone() || board_is_bone_lt()) {
 		/* BeagleBone PMIC Code */
 		uchar pmic_status_reg;
+		int usb_cur_lim;
+
+		/* Only perform PMIC configurations if board rev > A1 */
+		if (board_is_bone() && !strncmp(header.version, "00A1", 4))
+			return;
 
 		if (i2c_probe(TPS65217_CHIP_PM))
 			return;
@@ -405,19 +431,25 @@ void am33xx_spl_board_init(void)
 		if (tps65217_reg_read(STATUS, &pmic_status_reg))
 			return;
 
-		/* Increase USB current limit to 1300mA */
+		/*
+		 * Increase USB current limit to 1300mA or 1800mA and set
+		 * the MPU voltage controller as needed.
+		 */
+		if (mpu_pll == MPUPLL_M_1000) {
+			usb_cur_lim = USB_INPUT_CUR_LIMIT_1800MA;
+			mpu_vdd = DCDC_VOLT_SEL_1325MV;
+		} else {
+			usb_cur_lim = USB_INPUT_CUR_LIMIT_1300MA;
+			mpu_vdd = DCDC_VOLT_SEL_1275MV;
+		}
+
 		if (tps65217_reg_write(PROT_LEVEL_NONE, POWER_PATH,
-				       USB_INPUT_CUR_LIMIT_1300MA,
-				       USB_INPUT_CUR_LIMIT_MASK))
+				       usb_cur_lim, USB_INPUT_CUR_LIMIT_MASK))
 			printf("tps65217_reg_write failure\n");
 
-		/* Only perform PMIC configurations if board rev > A1 */
-		if (!strncmp(header.version, "00A1", 4))
-			return;
 
 		/* Set DCDC2 (MPU) voltage to 1.275V */
-		if (tps65217_voltage_update(DEFDCDC2,
-					     DCDC_VOLT_SEL_1275MV)) {
+		if (tps65217_voltage_update(DEFDCDC2, mpu_vdd)) {
 			printf("tps65217_voltage_update failure\n");
 			return;
 		}
@@ -436,14 +468,16 @@ void am33xx_spl_board_init(void)
 			return;
 		}
 
-		/* Set MPU Frequency to 720MHz */
-		mpu_pll_config(MPUPLL_M_720);
+		/* Set MPU Frequency to what we detected */
+		mpu_pll_config(mpu_pll);
 	} else {
 		uchar buf[4];
+
 		/*
-		 * EVM PMIC code.  All boards currently want an MPU voltage
-		 * of 1.2625V and CORE voltage of 1.1375V to operate at
-		 * 720MHz.
+		 * The GP EVM, IDK and EVM SK use a TPS65910 PMIC.  For all
+		 * MPU frequencies we support we use a CORE voltage of
+		 * 1.1375V.  For 1GHz we need to use an MPU voltage of
+		 * 1.3250V and for 720MHz or 800MHz we use 1.2625V.
 		 */
 		if (i2c_probe(PMIC_CTRL_I2C_ADDR))
 			return;
@@ -457,12 +491,19 @@ void am33xx_spl_board_init(void)
 		if (i2c_write(PMIC_CTRL_I2C_ADDR, PMIC_DEVCTRL_REG, 1, buf, 1))
 			return;
 
-		if (!voltage_update(MPU, PMIC_OP_REG_SEL_1_2_6) &&
+		/*
+		 * Unless we're running at 1GHz we use thesame VDD for
+		 * all other frequencies we switch to (currently 720MHz,
+		 * 800MHz or 1GHz).
+		 */
+		if (mpu_pll == MPUPLL_M_1000)
+			mpu_vdd = PMIC_OP_REG_SEL_1_3_2_5;
+		else
+			mpu_vdd = PMIC_OP_REG_SEL_1_2_6;
+
+		if (!voltage_update(MPU, mpu_vdd) &&
 				!voltage_update(CORE, PMIC_OP_REG_SEL_1_1_3)) {
-			if (board_is_evm_15_or_later())
-				mpu_pll_config(MPUPLL_M_800);
-			else
-				mpu_pll_config(MPUPLL_M_720);
+			mpu_pll_config(mpu_pll);
 		}
 	}
 }
