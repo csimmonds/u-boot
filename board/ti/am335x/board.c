@@ -325,6 +325,7 @@ static const struct emif_regs ddr2_emif_reg_data = {
 	.sdram_tim1 = MT47H128M16RT25E_EMIF_TIM1,
 	.sdram_tim2 = MT47H128M16RT25E_EMIF_TIM2,
 	.sdram_tim3 = MT47H128M16RT25E_EMIF_TIM3,
+	.emif_l3_config = REG_PR_OLD_COUNT_EN,
 	.emif_ddr_phy_ctlr_1 = MT47H128M16RT25E_EMIF_READ_LATENCY,
 };
 
@@ -378,6 +379,7 @@ static struct emif_regs ddr3_emif_reg_data = {
 	.sdram_tim1 = MT41J128MJT125_EMIF_TIM1,
 	.sdram_tim2 = MT41J128MJT125_EMIF_TIM2,
 	.sdram_tim3 = MT41J128MJT125_EMIF_TIM3,
+	.emif_l3_config = REG_PR_OLD_COUNT_EN,
 	.zq_config = MT41J128MJT125_ZQ_CFG,
 	.emif_ddr_phy_ctlr_1 = MT41J128MJT125_EMIF_READ_LATENCY |
 				PHY_EN_DYN_PWRDN,
@@ -389,6 +391,7 @@ static struct emif_regs ddr3_evm_emif_reg_data = {
 	.sdram_tim1 = MT41J512M8RH125_EMIF_TIM1,
 	.sdram_tim2 = MT41J512M8RH125_EMIF_TIM2,
 	.sdram_tim3 = MT41J512M8RH125_EMIF_TIM3,
+	.emif_l3_config = REG_PR_OLD_COUNT_EN,
 	.zq_config = MT41J512M8RH125_ZQ_CFG,
 	.emif_ddr_phy_ctlr_1 = MT41J512M8RH125_EMIF_READ_LATENCY,
 };
