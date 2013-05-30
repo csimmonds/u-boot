@@ -60,7 +60,6 @@
 #include <command.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <android_image.h>
 
 struct fastboot_config {
 
@@ -83,7 +82,7 @@ struct fastboot_config {
 #define FB_STR_PROC_REV_IDX     6
 #define FB_STR_PROC_TYPE_IDX    7
 
-#if (CONFIG_CMD_FASTBOOT)
+#ifdef CONFIG_CMD_FASTBOOT
 
 int fastboot_init(void);
 void fastboot_shutdown(void);

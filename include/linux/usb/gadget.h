@@ -19,6 +19,7 @@
 #define __LINUX_USB_GADGET_H
 
 #include <linux/list.h>
+#include <asm/errno.h>
 
 struct usb_ep;
 
