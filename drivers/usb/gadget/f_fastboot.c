@@ -157,19 +157,14 @@ static void fastboot_unbind(struct usb_gadget *gadget)
 	ep_out->driver_data = NULL;
 }
 
-/* This is the TI USB vendor id a product ID from TI's internal tree */
-#define DEVICE_VENDOR_ID  0x0451
-#define DEVICE_PRODUCT_ID 0xd022
-#define DEVICE_BCD        0x0100
-
 struct usb_device_descriptor fb_descriptor = {
 	.bLength            = sizeof(fb_descriptor),
 	.bDescriptorType    = USB_DT_DEVICE,
 	.bcdUSB             = 0x200,
 	.bMaxPacketSize0    = 0x40,
-	.idVendor           = DEVICE_VENDOR_ID,
-	.idProduct          = DEVICE_PRODUCT_ID,
-	.bcdDevice          = DEVICE_BCD,
+	.idVendor           = FASTBOOT_DEVICE_VENDOR_ID,
+	.idProduct          = FASTBOOT_DEVICE_PRODUCT_ID,
+	.bcdDevice          = FASTBOOT_DEVICE_BCD,
 	.iManufacturer      = FB_STR_MANUFACTURER_IDX,
 	.iProduct           = FB_STR_PRODUCT_IDX,
 	.iSerialNumber      = FB_STR_SERIAL_IDX,
