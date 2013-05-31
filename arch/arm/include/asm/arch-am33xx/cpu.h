@@ -45,6 +45,11 @@
 /* cpu-id for AM33XX family */
 #define AM335X				0xB944
 #define DEVICE_ID			0x44E10600
+#define DEVICE_ID_MASK			0x1FFF
+
+/* MPU max frequencies */
+#define AM335X_ZCZ_800			0x1E2F
+#define AM335X_ZCZ_1000			0x1C2F
 
 /* This gives the status of the boot mode pins on the evm */
 #define SYSBOOT_MASK			(BIT(0) | BIT(1) | BIT(2)\
@@ -340,6 +345,8 @@ struct ctrl_dev {
 	unsigned int macid1h;		/* offset 0x3c */
 	unsigned int resv4[4];
 	unsigned int miisel;		/* offset 0x50 */
+	unsigned int resv5[106];
+	unsigned int efuse_sma;		/* offset 0x1FC */
 };
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL_STRICT_NAMES */
