@@ -337,6 +337,14 @@ static const struct ddr_data ddr3_data = {
 	.datadldiff0 = PHY_DLL_LOCK_DIFF,
 };
 
+static const struct ddr_data ddr3_beagleblack_data = {
+	.datardsratio0 = MT41K256M16HA125E_RD_DQS,
+ 	.datawdsratio0 = MT41K256M16HA125E_WR_DQS,
+	.datafwsratio0 = MT41K256M16HA125E_PHY_FIFO_WE,
+	.datawrsratio0 = MT41K256M16HA125E_PHY_WR_DATA,
+	.datadldiff0 = PHY_DLL_LOCK_DIFF,
+};
+
 static const struct ddr_data ddr3_evm_data = {
 	.datardsratio0 = MT41J512M8RH125_RD_DQS,
 	.datawdsratio0 = MT41J512M8RH125_WR_DQS,
@@ -357,6 +365,20 @@ static const struct cmd_control ddr3_cmd_ctrl_data = {
 	.cmd2csratio = MT41J128MJT125_RATIO,
 	.cmd2dldiff = MT41J128MJT125_DLL_LOCK_DIFF,
 	.cmd2iclkout = MT41J128MJT125_INVERT_CLKOUT,
+};
+
+static const struct cmd_control ddr3_beagleblack_cmd_ctrl_data = {
+	.cmd0csratio = MT41K256M16HA125E_RATIO,
+	.cmd0dldiff = MT41K256M16HA125E_DLL_LOCK_DIFF,
+	.cmd0iclkout = MT41K256M16HA125E_INVERT_CLKOUT,
+
+	.cmd1csratio = MT41K256M16HA125E_RATIO,
+	.cmd1dldiff = MT41K256M16HA125E_DLL_LOCK_DIFF,
+	.cmd1iclkout = MT41K256M16HA125E_INVERT_CLKOUT,
+
+	.cmd2csratio = MT41K256M16HA125E_RATIO,
+	.cmd2dldiff = MT41K256M16HA125E_DLL_LOCK_DIFF,
+	.cmd2iclkout = MT41K256M16HA125E_INVERT_CLKOUT,
 };
 
 static const struct cmd_control ddr3_evm_cmd_ctrl_data = {
@@ -383,6 +405,16 @@ static struct emif_regs ddr3_emif_reg_data = {
 	.zq_config = MT41J128MJT125_ZQ_CFG,
 	.emif_ddr_phy_ctlr_1 = MT41J128MJT125_EMIF_READ_LATENCY |
 				PHY_EN_DYN_PWRDN,
+};
+
+static struct emif_regs ddr3_beagleblack_emif_reg_data = {
+	.sdram_config = MT41K256M16HA125E_EMIF_SDCFG,
+	.ref_ctrl = MT41K256M16HA125E_EMIF_SDREF,
+	.sdram_tim1 = MT41K256M16HA125E_EMIF_TIM1,
+	.sdram_tim2 = MT41K256M16HA125E_EMIF_TIM2,
+	.sdram_tim3 = MT41K256M16HA125E_EMIF_TIM3,
+	.zq_config = MT41K256M16HA125E_ZQ_CFG,
+	.emif_ddr_phy_ctlr_1 = MT41K256M16HA125E_EMIF_READ_LATENCY,
 };
 
 static struct emif_regs ddr3_evm_emif_reg_data = {
@@ -420,12 +452,11 @@ void am33xx_spl_board_init(void)
 	}
 
 	/*
-	 * HACK: The incorrect DDR timings currently used in this
-	 * version of U-Boot may work in some cases at the default MPU
-	 * clock speed but do _NOT_ work when ramped up to maximum.
+	 * HACK: PG 2.0 should have max of 800MHz but Beaglebone Black
+	 * can work at 1GHz.
 	 */
 	if (board_is_bone_lt())
-		return;
+		mpu_pll = MPUPLL_M_1000;
 
 	if (board_is_bone() || board_is_bone_lt()) {
 		/* BeagleBone PMIC Code */
@@ -474,7 +505,9 @@ void am33xx_spl_board_init(void)
 				       LDO_VOLTAGE_OUT_3_3, LDO_MASK))
 			printf("tps65217_reg_write failure\n");
 
-		if (!(pmic_status_reg & PWR_SRC_AC_BITMASK)) {
+		/* Only Beaglebone needs the AC power, not Beaglebone Black */
+		if (board_is_bone() &&
+				 !(pmic_status_reg & PWR_SRC_AC_BITMASK)) {
 			printf("No AC power, disabling frequency switch\n");
 			return;
 		}
@@ -655,10 +688,14 @@ void s_init(void)
 	am33xx_spl_board_init();
 #endif
 
-	if ((!strncmp("A335X_SK", header.name, HDR_NAME_LEN)) ||
-			 (!strncmp("A335BNLT", header.name, 8)))
+	if (!strncmp("A335X_SK", header.name, HDR_NAME_LEN))
 		config_ddr(303, MT41J128MJT125_IOCTRL_VALUE, &ddr3_data,
 			   &ddr3_cmd_ctrl_data, &ddr3_emif_reg_data);
+	else if  (!strncmp("A335BNLT", header.name, 8))
+		config_ddr(400, MT41K256M16HA125E_IOCTRL_VALUE,
+			   &ddr3_beagleblack_data,
+			   &ddr3_beagleblack_cmd_ctrl_data,
+			   &ddr3_beagleblack_emif_reg_data);
 	else if (!strncmp("A33515BB", header.name, 8) &&
 				strncmp("1.5", header.version, 3) <= 0)
 		config_ddr(303, MT41J512M8RH125_IOCTRL_VALUE, &ddr3_evm_data,
