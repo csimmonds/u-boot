@@ -57,10 +57,12 @@
  * SUCH DAMAGE.
  */
 #include <common.h>
+#include <command.h>
 #include <usb/fastboot.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include "g_fastboot.h"
+#include <environment.h>
 
 /* The 64 defined bytes plus \0 */
 #define RESPONSE_LEN	(64 + 1)
@@ -69,6 +71,57 @@ struct fastboot_config fb_cfg;
 
 static unsigned int download_size;
 static unsigned int download_bytes;
+
+/* To support the Android-style naming of flash */
+#define MAX_PTN 16
+static fastboot_ptentry ptable[MAX_PTN];
+static unsigned int pcount;
+static int static_pcount = -1;
+
+extern env_t *env_ptr;
+extern int do_env_save (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+/* FASBOOT specific */
+
+/*
+ * Android style flash utilties */
+void fastboot_flash_reset_ptn(void)
+{
+       FBTINFO("fastboot flash reset partition..!!");
+       pcount = 0;
+}
+
+void fastboot_flash_add_ptn(fastboot_ptentry *ptn)
+{
+       if(pcount < MAX_PTN){
+               memcpy(ptable + pcount, ptn, sizeof(*ptn));
+               pcount++;
+       }
+}
+
+void fastboot_flash_dump_ptn(void)
+{
+       unsigned int n;
+       for(n = 0; n < pcount; n++) {
+               fastboot_ptentry *ptn = ptable + n;
+               FBTINFO("ptn %d name='%s' start=%d len=%d\n",
+                               n, ptn->name, ptn->start, ptn->length);
+       }
+}
+
+fastboot_ptentry *fastboot_flash_find_ptn(const char *name)
+{
+       unsigned int n;
+
+       for(n = 0; n < pcount; n++) {
+               /* Make sure a substring is not accepted */
+               if (strlen(name) == strlen(ptable[n].name))
+               {
+                       if(0 == strcmp(ptable[n].name, name))
+                               return ptable + n;
+               }
+       }
+       return 0;
+}
 
 static int fastboot_tx_write_str(const char *buffer)
 {
@@ -189,9 +242,7 @@ static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 		download_size = 0;
 		req->complete = rx_handler_command;
 		req->length = EP_BUFFER_SIZE;
-
-		sprintf(response, "OKAY");
-		fastboot_tx_write_str(response);
+		fastboot_tx_write_str("OKAY");
 
 		printf("\ndownloading of %d bytes finished\n",
 				download_bytes);
@@ -258,6 +309,100 @@ static void cb_boot(struct usb_ep *ep, struct usb_request *req)
 	return;
 }
 
+
+static void cb_oem(struct usb_ep *ep, struct usb_request *req)
+{
+	char *cmd = req->buf;
+
+	printf ("calling fastboot oem!! : %s\n", cmd);
+	int r = fastboot_oem(cmd + 4);
+	if (r < 0) {
+		fastboot_tx_write_str("FAIL");
+	} else {
+		fastboot_tx_write_str("OKAY");
+	}
+}
+
+static void cb_flash(struct usb_ep *ep, struct usb_request *req)
+{
+	char *cmdbuf = req->buf;
+        int status = 0;
+	char response[32];
+	char part_name[20]={0,};
+
+	strncpy (part_name, cmdbuf + 6, req->actual - 6);
+        if (download_bytes) {
+                struct fastboot_ptentry *ptn;
+
+                /* Next is the partition name */
+                ptn = fastboot_flash_find_ptn(part_name);
+
+                if (ptn == 0) {
+                        printf("Partition:[%s] does not exist\n", part_name);
+                        sprintf(response, "FAILpartition does not exist");
+                } else if ((download_bytes > ptn->length) &&
+                                        !(ptn->flags & FASTBOOT_PTENTRY_FLAGS_WRITE_ENV)) {
+                        printf("Image too large for the partition\n");
+                        sprintf(response, "FAILimage too large for partition");
+                } else if (ptn->flags & FASTBOOT_PTENTRY_FLAGS_WRITE_ENV) {
+                        /* Check if this is not really a flash write,
+                         * but instead a saveenv
+                         */
+                        unsigned int i = 0;
+                        /* Env file is expected with a NULL delimeter between
+                         * env variables So replace New line Feeds (0x0a) with
+                         * NULL (0x00)
+                         */
+                        for (i = 0; i < download_bytes; i++) {
+                                if (fb_cfg.transfer_buffer[i] == 0x0a)
+                                        fb_cfg.transfer_buffer[i] = 0x00;
+                        }
+                        memset(env_ptr->data, 0, ENV_SIZE);
+                        memcpy(env_ptr->data, fb_cfg.transfer_buffer, download_bytes);
+                        do_env_save(NULL, 0, 1, NULL);
+                        printf("saveenv to '%s' DONE!\n", ptn->name);
+                        sprintf(response, "OKAY");
+                } else {
+                        /* Normal case */
+                        char source[32], dest[32], length[32];
+                        source[0] = '\0';
+                        dest[0] = '\0';
+                        length[0] = '\0';
+
+                        printf("writing to partition '%s'\n", ptn->name);
+                        char *mmc_write[5]  = {"mmc", "write", NULL, NULL, NULL};
+                        char *mmc_init[2] = {"mmc", "rescan",};
+
+                        mmc_write[2] = source;
+                        mmc_write[3] = dest;
+                        mmc_write[4] = length;
+
+                        sprintf(source, "0x%x", fb_cfg.transfer_buffer);
+                        sprintf(dest, "0x%x", ptn->start);
+                        sprintf(length, "0x%x", (download_bytes/512)+1);
+
+                        printf("Initializing '%s'\n", ptn->name);
+                        if (do_mmcops(NULL, 0, 2, mmc_init))
+                                sprintf(response, "FAIL:Init of MMC card");
+                        else
+                                sprintf(response, "OKAY");
+
+                        printf("Writing '%s'\n", ptn->name);
+                        if (do_mmcops(NULL, 0, 5, mmc_write)) {
+                                printf("Writing '%s' FAILED!\n", ptn->name);
+                                sprintf(response, "FAIL: Write partition");
+                        } else {
+                                printf("Writing '%s' DONE!\n", ptn->name);
+                                sprintf(response, "OKAY");
+                        }
+                }
+        } else {
+                sprintf(response, "FAILno image downloaded");
+        }
+
+	fastboot_tx_write_str(response);
+}
+
 struct cmd_dispatch_info {
 	char *cmd;
 	void (*cb)(struct usb_ep *ep, struct usb_request *req);
@@ -276,6 +421,12 @@ static struct cmd_dispatch_info cmd_dispatch_info[] = {
 	}, {
 		.cmd = "boot",
 		.cb = cb_boot,
+	}, {
+		.cmd = "oem",
+		.cb = cb_oem,
+	},{
+		.cmd = "flash:",
+		.cb = cb_flash,
 	},
 };
 
@@ -285,8 +436,11 @@ void rx_handler_command(struct usb_ep *ep, struct usb_request *req)
 	char *cmdbuf = req->buf;
 	void (*func_cb)(struct usb_ep *ep, struct usb_request *req) = NULL;
 	int i;
-
+	char command[32] ={0,};
 	sprintf(response, "FAIL");
+
+	strncpy(command, cmdbuf, 11);
+	printf ("Recieved command : %s : req len : %d \n", command, req->actual);
 
 	for (i = 0; i < ARRAY_SIZE(cmd_dispatch_info); i++) {
 		if (!strcmp_l1(cmd_dispatch_info[i].cmd, cmdbuf)) {
