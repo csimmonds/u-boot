@@ -512,29 +512,4 @@
 #endif
 #endif
 
-/*
- *  * NOR Size = 16 MB
- *   * No.Of Sectors/Blocks = 128
- *    * Sector Size = 128 KB
- *     * Word lenght = 16 bits
- *      */
-#if defined(CONFIG_NOR)
-#undef CONFIG_SYS_NO_FLASH
-#undef CONFIG_SYS_MALLOC_LEN
-#define CONFIG_SYS_FLASH_USE_BUFFER_WRITE 1
-#define CONFIG_SYS_FLASH_PROTECTION
-#define CONFIG_SYS_MALLOC_LEN		(0x100000)
-#define CONFIG_SYS_FLASH_CFI
-#define CONFIG_FLASH_CFI_DRIVER
-#define CONFIG_FLASH_CFI_MTD
-#define CONFIG_SYS_MAX_FLASH_SECT	128
-#define CONFIG_SYS_MAX_FLASH_BANKS	1
-#define CONFIG_SYS_FLASH_BASE		(0x08000000)
-#define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
-#define CONFIG_SYS_MONITOR_BASE CONFIG_SYS_FLASH_BASE
-#define NOR_SECT_SIZE			(128 * 1024)
-#define CONFIG_MTD_DEVICE
-#define CONFIG_CMD_FLASH
-#endif  /* NOR support */
-
 #endif	/* ! __CONFIG_AM335X_EVM_H */
