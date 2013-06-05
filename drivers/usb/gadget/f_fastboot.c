@@ -19,6 +19,12 @@
 
 #include "g_fastboot.h"
 
+#ifdef CONFIG_USB_GADGET_DUALSPEED
+#define DEVSPEED	USB_SPEED_HIGH
+#else
+#define DEVSPEED	USB_SPEED_FULL
+#endif
+
 #define CONFIGURATION_NORMAL      1
 #define BULK_ENDPOINT 1
 #define RX_ENDPOINT_MAXIMUM_PACKET_SIZE_2_0  (0x0200)
@@ -137,13 +143,15 @@ static int fastboot_bind(struct usb_gadget *gadget)
 	ep_out->driver_data = ep_out;
 
 	hs_ep_out.bEndpointAddress = fs_ep_out.bEndpointAddress;
-	return 0;
+
+	return usb_gadget_connect(gadget);
 err:
 	return -1;
 }
 
 static void fastboot_unbind(struct usb_gadget *gadget)
 {
+	usb_gadget_disconnect(gadget);
 	usb_ep_free_request(g->ep0, ep0_req);
 	ep_in->driver_data = NULL;
 	ep_out->driver_data = NULL;
@@ -475,13 +483,12 @@ static void fastboot_disconnect(struct usb_gadget *gadget)
 }
 
 struct usb_gadget_driver fast_gadget = {
+	.speed		= DEVSPEED,
 	.bind		= fastboot_bind,
 	.unbind		= fastboot_unbind,
 	.setup		= fastboot_setup,
 	.disconnect	= fastboot_disconnect,
 };
-
-static int udc_is_probbed;
 
 int fastboot_init(void)
 {
@@ -492,13 +499,6 @@ int fastboot_init(void)
 		return ret;
 	if (!vendor_fb_strings)
 		return -EINVAL;
-
-	ret = usb_gadget_init_udc();
-	if (ret) {
-		printf("gadget probe failed\n");
-		return 1;
-	}
-	udc_is_probbed = 1;
 
 	ret = usb_gadget_register_driver(&fast_gadget);
 	if (ret) {
@@ -527,10 +527,7 @@ int fastboot_poll(void)
 
 void fastboot_shutdown(void)
 {
-	if (!udc_is_probbed)
-		return;
-	udc_is_probbed = 0;
-	usb_gadget_exit_udc();
+	/* TODO? */
 }
 
 int fastboot_tx_write(const char *buffer, unsigned int buffer_size)
