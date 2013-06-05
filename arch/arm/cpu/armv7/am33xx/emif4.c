@@ -43,7 +43,7 @@ void dram_init_banksize(void)
 }
 
 
-#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT)
+#ifdef CONFIG_SPL_BUILD
 static struct vtp_reg *vtpreg = (struct vtp_reg *)VTP0_CTRL_ADDR;
 static struct ddr_ctrl *ddrctrl = (struct ddr_ctrl *)DDR_CTRL_ADDR;
 

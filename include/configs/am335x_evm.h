@@ -39,9 +39,6 @@
 #define CONFIG_SETUP_MEMORY_TAGS
 #define CONFIG_INITRD_TAG
 
-/* Custom script for NOR */
-#define CONFIG_SYS_LDSCRIPT		"board/ti/am335x/u-boot.lds"
-
 #define CONFIG_SYS_CACHELINE_SIZE       64
 
 /* commands to include */
@@ -328,7 +325,6 @@
 
 #define CONFIG_ENV_IS_NOWHERE
 
-#ifndef CONFIG_NOR_BOOT
 /* Defines for SPL */
 #define CONFIG_SPL
 #define CONFIG_SPL_FRAMEWORK
@@ -371,8 +367,6 @@
 #define CONFIG_SPL_NAND_BASE
 #define CONFIG_SPL_NAND_DRIVERS
 #define CONFIG_SPL_NAND_ECC
-#endif
-
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
 #define CONFIG_SYS_NAND_PAGE_COUNT	(CONFIG_SYS_NAND_BLOCK_SIZE / \
 					 CONFIG_SYS_NAND_PAGE_SIZE)
@@ -405,18 +399,14 @@
  * header. That is 0x800FFFC0--0x80100000 should not be used for any
  * other needs.
  */
-#ifdef CONFIG_NOR_BOOT
-#define CONFIG_SYS_TEXT_BASE		0x08000000
-#else
 #define CONFIG_SYS_TEXT_BASE		0x80800000
-#endif
 #define CONFIG_SYS_SPL_MALLOC_START	0x80208000
 #define CONFIG_SYS_SPL_MALLOC_SIZE	0x100000
 
 /* Since SPL did pll and ddr initialization for us,
  * we don't need to do it twice.
  */
-#if !defined(CONFIG_SPL_BUILD) && ! defined(CONFIG_NOR_BOOT)
+#ifndef CONFIG_SPL_BUILD
 #define CONFIG_SKIP_LOWLEVEL_INIT
 #endif
 
@@ -514,7 +504,7 @@
 							/* CS0 */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1		/* Max number of NAND
 							   devices */
-#if !defined(CONFIG_SPI_BOOT) && !defined(CONFIG_NOR_BOOT)
+#if !defined(CONFIG_SPI_BOOT)
 #undef CONFIG_ENV_IS_NOWHERE
 #define CONFIG_ENV_IS_IN_NAND
 #define CONFIG_ENV_OFFSET		0x260000 /* environment starts here */
@@ -543,17 +533,6 @@
 #define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 #define CONFIG_SYS_MONITOR_BASE CONFIG_SYS_FLASH_BASE
 #define NOR_SECT_SIZE			(128 * 1024)
-#ifdef CONFIG_NOR_BOOT
-#undef CONFIG_ENV_IS_NOWHERE
-#define CONFIG_ENV_IS_IN_FLASH  1
-#define CONFIG_SYS_ENV_SECT_SIZE	(2 * NOR_SECT_SIZE)
-#define CONFIG_ENV_SECT_SIZE		(2 * NOR_SECT_SIZE)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_SIZE			CONFIG_ENV_SECT_SIZE
-#define CONFIG_ENV_OFFSET		(2 * NOR_SECT_SIZE) /* After 1 MB */
-#define CONFIG_ENV_ADDR		(CONFIG_SYS_FLASH_BASE + \
-         CONFIG_ENV_OFFSET)
-#endif
 #define CONFIG_MTD_DEVICE
 #define CONFIG_CMD_FLASH
 #endif  /* NOR support */

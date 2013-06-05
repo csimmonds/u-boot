@@ -18,7 +18,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)lib$(BOARD).o
 
-ifeq ($(CONFIG_SPL_BUILD)$(CONFIG_NOR_BOOT),y)
+ifdef CONFIG_SPL_BUILD
 COBJS	:= mux.o
 endif
 
