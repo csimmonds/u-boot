@@ -1,0 +1,86 @@
+Android Fastboot
+~~~~~~~~~~~~~~~~
+
+Overview
+========
+The protocol that is used over USB is described in
+README.android-fastboot-protocol in same folder.
+
+The current implementation does not yet support the flash and erase
+commands.
+
+Client installation
+===================
+The counterpart to this gadget is the fastboot client which can
+be found in Android's platform/system/core repository in the fastboot
+folder. It runs on Windows, Linux and even OSx. Linux user are lucky since
+they only need libusb.
+Windows users need to bring some time until they have Android SDK (currently
+http://dl.google.com/android/installer_r12-windows.exe) installed. You
+need to install ADB package which contains the required glue libraries for
+accessing USB. Also you need "Google USB driver package" and "SDK platform
+tools". Once installed the usb driver is placed in your SDK folder under
+extras\google\usb_driver. The android_winusb.inf needs a line like
+
+   %SingleBootLoaderInterface% = USB_Install, USB\VID_0451&PID_D022
+
+either in the [Google.NTx86] section for 32bit Windows or [Google.NTamd64]
+for 64bit Windows. VID and PID should match whatever the fastboot is
+advertising.
+
+Board specific
+==============
+The gadget calls at probe time the function fastboot_board_init() which
+should be provided by the board to setup its specific configuration.
+It is possible here to overwrite specific strings like Vendor or Serial
+number. Strings which are not specified here will return a default value.
+This init function must also provide a memory area for the
+"transfer_buffer" and its size. This buffer should be large enough to hold
+whatever the download commands is willing to send or it will fail. This
+can be a kernel image for booting which could be around two MiB or a flash
+partition which could be slightly larger :)
+
+In Action
+=========
+Enter into fastboot by executing the fastboot command in u-boot and you
+should see:
+|Fastboot entered...
+
+The gadget terminates once the is unplugged. On the client side you can
+fetch the product name for instance:
+|>fastboot getvar product
+|product: Default Product
+|finished. total time: 0.016s
+
+or initiate a reboot:
+|>fastboot reboot
+
+and once the client comes back, the board should reset.
+
+You can also specify a kernel image to boot. You have to either specify
+the an image in Android format _or_ pass a binary kernel and let the
+fastboot client wrap the Android suite around it. On OMAP for instance you
+take zImage kernel and pass it to the fastboot client:
+
+|>fastboot -b 0x80000000 -c "console=ttyO2 earlyprintk root=/dev/ram0
+|	mem=128M" boot zImage
+|creating boot image...
+|creating boot image - 1847296 bytes
+|downloading 'boot.img'...
+|OKAY [  2.766s]
+|booting...
+|OKAY [ -0.000s]
+|finished. total time: 2.766s
+
+and on the gadget side you should see:
+|Starting download of 1847296 bytes
+|........................................................
+|downloading of 1847296 bytes finished
+|Booting kernel..
+|## Booting Android Image at 0x81000000 ...
+|Kernel load addr 0x80008000 size 1801 KiB
+|Kernel command line: console=ttyO2 earlyprintk root=/dev/ram0 mem=128M
+|   Loading Kernel Image ... OK
+|OK
+|
+|Starting kernel ...
