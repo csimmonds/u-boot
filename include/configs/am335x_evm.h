@@ -431,9 +431,17 @@
 #endif
 
 #ifdef CONFIG_MUSB_GADGET
+/* Android fastboot support over USB */
+#define CONFIG_CMD_FASTBOOT
+#define FASTBOOT_DEVICE_VENDOR_ID	0x0451
+#define FASTBOOT_DEVICE_PRODUCT_ID	0xd022 /* TI fastboot PID */
+#define FASTBOOT_DEVICE_BCD		0x0100
+
+/* ethernet gadget conflicts with fastboot, so disabled */
+/*
 #define CONFIG_USB_ETHER
 #define CONFIG_USB_ETH_RNDIS
-#define CONFIG_USBNET_HOST_ADDR	"de:ad:be:af:00:00"
+#define CONFIG_USBNET_HOST_ADDR	"de:ad:be:af:00:00"*/
 #endif /* CONFIG_MUSB_GADGET */
 
 /*
