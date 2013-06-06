@@ -440,11 +440,10 @@ void rx_handler_command(struct usb_ep *ep, struct usb_request *req)
 	char *cmdbuf = req->buf;
 	void (*func_cb)(struct usb_ep *ep, struct usb_request *req) = NULL;
 	int i;
-	char command[32] ={0,};
 	sprintf(response, "FAIL");
 
-	strncpy(command, cmdbuf, 11);
-	printf ("Recieved command : %s : req len : %d \n", command, req->actual);
+	*(cmdbuf + req->actual) = '\0';
+	FBTINFO ("Recieved command : %s : req len : %d \n", cmdbuf, req->actual);
 
 	for (i = 0; i < ARRAY_SIZE(cmd_dispatch_info); i++) {
 		if (!strcmp_l1(cmd_dispatch_info[i].cmd, cmdbuf)) {
