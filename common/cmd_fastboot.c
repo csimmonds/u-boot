@@ -69,7 +69,10 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 
 		while (1) {
 			if (fastboot_poll())
+			{
+				printf("Fastboot poll break...\n");
 				break;
+			}
 		}
 	}
 

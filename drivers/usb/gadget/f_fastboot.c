@@ -307,8 +307,7 @@ static void fastboot_complete_in(struct usb_ep *ep, struct usb_request *req)
 {
 	int status = req->status;
 
-	if (status)
-		printf("status: %d ep_in trans: %d\n",
+	FBTINFO("status: %d ep_in trans: %d\n",
 				status,
 				req->actual);
 }
@@ -527,7 +526,7 @@ void fastboot_shutdown(void)
 
 int fastboot_tx_write(const char *buffer, unsigned int buffer_size)
 {
-	int ret;
+	int ret = 0;
 
 	if (req_in->complete == NULL)
 		req_in->complete = fastboot_complete_in;
@@ -537,5 +536,5 @@ int fastboot_tx_write(const char *buffer, unsigned int buffer_size)
 	ret = usb_ep_queue(ep_in, req_in, 0);
 	if (ret)
 		printf("Error %d on queue\n", ret);
-	return 0;
+	return ret;
 }
