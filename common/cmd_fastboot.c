@@ -1,6 +1,7 @@
 #include <common.h>
 #include <command.h>
 #include <usb/fastboot.h>
+#include <asm/sizes.h>
 
 static char serial_number[28] = "001234";
 
@@ -23,10 +24,7 @@ static struct usb_gadget_strings def_fb_strings = {
  * stored on media
  */
 DECLARE_GLOBAL_DATA_PTR;
-#define SZ_16M                          0x01000000
-#define SZ_256M                         0x10000000
 #define CFG_FASTBOOT_TRANSFER_BUFFER (void *)(gd->bd->bi_dram[0].start + SZ_16M)
-#define CFG_FASTBOOT_TRANSFER_BUFFER_SIZE (SZ_256M - SZ_16M)
 
 static void set_serial_number(void)
 {
@@ -52,7 +50,7 @@ int fastboot_board_init(struct fastboot_config *interface,
 	set_serial_number();
 
 	interface->transfer_buffer = CFG_FASTBOOT_TRANSFER_BUFFER;
-	interface->transfer_buffer_size = CFG_FASTBOOT_TRANSFER_BUFFER_SIZE;
+	interface->transfer_buffer_size = CONFIG_FASTBOOT_MAX_TRANSFER_SIZE;
 
 	*str = &def_fb_strings;
 	return 0;
