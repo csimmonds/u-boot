@@ -494,10 +494,19 @@ void am33xx_spl_board_init(void)
 			return;
 		}
 
-		/* Set LDO3, LDO4 output voltage to 3.3V */
-		if (tps65217_reg_write(PROT_LEVEL_2, DEFLS1,
+		/*
+		 * Set LDO3, LDO4 output voltage to 3.3V for Beaglebone.
+		 * Set LDO3 to 1.8V and LDO4 to 3.3V for Beaglebone Black.
+		 */
+		if (board_is_bone()) {
+			if (tps65217_reg_write(PROT_LEVEL_2, DEFLS1,
 				       LDO_VOLTAGE_OUT_3_3, LDO_MASK))
-			printf("tps65217_reg_write failure\n");
+				printf("tps65217_reg_write failure\n");
+		} else {
+			if (tps65217_reg_write(PROT_LEVEL_2, DEFLS1,
+				       LDO_VOLTAGE_OUT_1_8, LDO_MASK))
+				printf("tps65217_reg_write failure\n");
+		}
 
 		if (tps65217_reg_write(PROT_LEVEL_2, DEFLS2,
 				       LDO_VOLTAGE_OUT_3_3, LDO_MASK))
