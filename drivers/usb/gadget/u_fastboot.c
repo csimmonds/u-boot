@@ -219,6 +219,7 @@ static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 	unsigned int transfer_size = download_size - download_bytes;
 	const unsigned char *buffer = req->buf;
 	unsigned int buffer_size = req->actual;
+	int dnl_complete = 0;
 
 	if (req->status != 0) {
 		printf("Bad status: %d\n", req->status);
@@ -242,8 +243,7 @@ static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 		download_size = 0;
 		req->complete = rx_handler_command;
 		req->length = EP_BUFFER_SIZE;
-		fastboot_tx_write_str("OKAY");
-
+		dnl_complete = 1;
 		printf("\ndownloading of %d bytes finished\n",
 				download_bytes);
 	} else
@@ -254,6 +254,10 @@ static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 		if (!(download_bytes % (74 * BYTES_PER_DOT)))
 				printf("\n");
 
+	}
+	if (dnl_complete)
+	{
+		fastboot_tx_write_str("OKAY");
 	}
 	req->actual = 0;
 	usb_ep_queue(ep, req, 0);
