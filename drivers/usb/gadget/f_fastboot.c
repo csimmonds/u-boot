@@ -488,11 +488,13 @@ int fastboot_init(void)
 {
 	int ret;
 
-	ret = fastboot_board_init(&fb_cfg, &vendor_fb_strings);
+	ret = fastboot_board_init(&fastboot_cfg, &vendor_fb_strings);
 	if (ret)
 		return ret;
 	if (!vendor_fb_strings)
 		return -EINVAL;
+
+	set_fb_config(&fastboot_cfg);
 
 	ret = usb_gadget_register_driver(&fast_gadget);
 	if (ret) {

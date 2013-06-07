@@ -24,13 +24,6 @@ endif
 
 COBJS	+= board.o
 
-# Do not include MMC partitioning support in SPL
-ifndef CONFIG_SPL_BUILD
-ifdef CONFIG_CMD_FASTBOOT
-COBJS += mmc.o
-endif
-endif
-
 SRCS	:= $(SOBJS:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
 SOBJS	:= $(addprefix $(obj),$(SOBJS))

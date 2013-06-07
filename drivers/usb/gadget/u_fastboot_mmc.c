@@ -1,15 +1,46 @@
 /*
- * Copyright (c) 2010, The Android Open Source Project.
+ * Copyright (C) 2013 Texas Instruments
+ *
+ * Author : Pankaj Bharadiya <pankaj.bharadiya@ti.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ *
+ *
+ * Fastboot is implemented using gadget stack, many of the ideas are
+ * derived from fastboot implemented in OmapZoom by
+ * Tom Rix <Tom.Rix@windriver.com> and Sitara 2011 u-boot by
+ * Mohammed Afzal M A <afzal@ti.com>
+ *
+ * Part of OmapZoom was copied from Android project, Android source
+ * (legacy bootloader) was used indirectly here by using OmapZoom.
+ *
+ * This is Android's Copyright:
+ *
+ * Copyright (C) 2008 The Android Open Source Project
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  *  * Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *  * Neither the name of The Android Open Source Project nor the names
- *    of its contributors may be used to endorse or promote products
- *    derived from this software without specific prior written
- *    permission.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -23,16 +54,45 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #include <common.h>
-#include <mmc.h>
+#include <command.h>
 #include <usb/fastboot.h>
+#include <linux/usb/ch9.h>
+#include <linux/usb/gadget.h>
+#include "g_fastboot.h"
+#include <environment.h>
+#include <mmc.h>
 
 #define EFI_VERSION 0x00010000
 #define EFI_ENTRIES 128
 #define EFI_NAMELEN 36
+
+struct partition {
+	const char *name;
+	unsigned size_kb;
+};
+
+/* eMMC partition layout (All sizes are in kB)
+ * Modify the below partition table to change the GPT configuration.
+ * The entry for each partition can be modified as per the requirement.
+ */
+static struct partition partitions[] = {
+	{ "-", 128 },			/* Master Boot Record and GUID Partition Table */
+	{ "spl", 128 },			/* First stage bootloader */
+	{ "bootloader", 512 },		/* Second stage bootloader */
+	{ "misc", 128 },		/* Rserved for internal purpose */
+	{ "-", 128 },			/* Reserved */
+	{ "recovery", 8*1024 },		/* Recovery partition  */
+	{ "boot", 8*1024 },		/* Partition contains kernel + ramdisk images */
+	{ "system", 256*1024 },		/* Android file system */
+	{ "cache", 256*1024 },		/* Store Application Cache */
+	{ "userdata", 256*1024 },	/* User data */
+	{ "media", 0 },			/* Media files */
+	{ 0, 0 },
+};
+
 
 static const u8 partition_type[16] = {
 	0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44,
@@ -248,33 +308,10 @@ static int load_ptbl(void)
 	return 0;
 }
 
-struct partition {
-	const char *name;
-	unsigned size_kb;
-};
-
-/* eMMC partition layout (All sizes are in kB)
- * Modify the below partition table to change the GPT configuration.
- * The entry for each partition can be modified as per the requirement.
- */
-static struct partition partitions[] = {
-	{ "-", 128 },			/* Master Boot Record and GUID Partition Table */
-	{ "spl", 128 },			/* First stage bootloader */
-	{ "bootloader", 512 },		/* Second stage bootloader */
-	{ "misc", 128 },		/* Rserved for internal purpose */
-	{ "-", 128 },			/* Reserved */
-	{ "recovery", 8*1024 },		/* Recovery partition  */
-	{ "boot", 8*1024 },		/* Partition contains kernel + ramdisk images */
-	{ "system", 256*1024 },		/* Android file system */
-	{ "cache", 256*1024 },		/* Store Application Cache */
-	{ "userdata", 256*1024 },	/* User data */
-	{ "media", 0 },			/* Media files */
-	{ 0, 0 },
-};
 
 static struct ptable the_ptable;
 
-static int do_format(void)
+int do_format(void)
 {
 	struct ptable *ptbl = &the_ptable;
 	unsigned sector_sz, blocks;
@@ -348,22 +385,83 @@ static int do_format(void)
 	return 0;
 }
 
-int fastboot_oem(const char *cmd)
+struct fastboot_config fastboot_cfg;
+
+extern env_t *env_ptr;
+extern int do_env_save (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+
+int handle_flash(char *part_name, char *response)
 {
-	printf("fastboot_oem:%s", cmd);
-	if (!strcmp(cmd, "format"))
-		return do_format();
-	return -1;
+        int status = 0;
+
+        if (fastboot_cfg.download_bytes) {
+                struct fastboot_ptentry *ptn;
+
+                /* Next is the partition name */
+                ptn = fastboot_flash_find_ptn(part_name);
+
+                if (ptn == 0) {
+                        printf("Partition:[%s] does not exist\n", part_name);
+                        sprintf(response, "FAILpartition does not exist");
+                } else if ((fastboot_cfg.download_bytes > ptn->length) &&
+                                        !(ptn->flags & FASTBOOT_PTENTRY_FLAGS_WRITE_ENV)) {
+                        printf("Image too large for the partition\n");
+                        sprintf(response, "FAILimage too large for partition");
+                } else if (ptn->flags & FASTBOOT_PTENTRY_FLAGS_WRITE_ENV) {
+                        /* Check if this is not really a flash write,
+                         * but instead a saveenv
+                         */
+                        unsigned int i = 0;
+                        /* Env file is expected with a NULL delimeter between
+                         * env variables So replace New line Feeds (0x0a) with
+                         * NULL (0x00)
+                         */
+                        for (i = 0; i < fastboot_cfg.download_bytes; i++) {
+                                if (fastboot_cfg.transfer_buffer[i] == 0x0a)
+                                        fastboot_cfg.transfer_buffer[i] = 0x00;
+                        }
+                        memset(env_ptr->data, 0, ENV_SIZE);
+                        memcpy(env_ptr->data, fastboot_cfg.transfer_buffer, fastboot_cfg.download_bytes);
+                        do_env_save(NULL, 0, 1, NULL);
+                        printf("saveenv to '%s' DONE!\n", ptn->name);
+                        sprintf(response, "OKAY");
+                } else {
+                        /* Normal case */
+                        char source[32], dest[32], length[32];
+                        source[0] = '\0';
+                        dest[0] = '\0';
+                        length[0] = '\0';
+
+                        printf("writing to partition '%s'\n", ptn->name);
+                        char *mmc_write[5]  = {"mmc", "write", NULL, NULL, NULL};
+                        char *mmc_init[2] = {"mmc", "rescan",};
+
+                        mmc_write[2] = source;
+                        mmc_write[3] = dest;
+                        mmc_write[4] = length;
+
+                        sprintf(source, "0x%x", fastboot_cfg.transfer_buffer);
+                        sprintf(dest, "0x%x", ptn->start);
+                        sprintf(length, "0x%x", (fastboot_cfg.download_bytes/512)+1);
+
+                        printf("Initializing '%s'\n", ptn->name);
+                        if (do_mmcops(NULL, 0, 2, mmc_init))
+                                sprintf(response, "FAIL:Init of MMC card");
+                        else
+                                sprintf(response, "OKAY");
+
+                        printf("Writing '%s'\n", ptn->name);
+                        if (do_mmcops(NULL, 0, 5, mmc_write)) {
+                                printf("Writing '%s' FAILED!\n", ptn->name);
+                                sprintf(response, "FAIL: Write partition");
+                        } else {
+                                printf("Writing '%s' DONE!\n", ptn->name);
+                                sprintf(response, "OKAY");
+                        }
+                }
+        } else {
+                sprintf(response, "FAILno image downloaded");
+        }
+
 }
 
-int board_mmc_fbtptn_init(void)
-{
-	char *mmc_init[2] = {"mmc", "rescan",};
-	if (do_mmcops(NULL, 0, 2, mmc_init)) {
-		printf("FAIL:Init of MMC card");
-		return 1;
-	}
-
-	printf("\nefi partition table:\n");
-	return load_ptbl();
-}

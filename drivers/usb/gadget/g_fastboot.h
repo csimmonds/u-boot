@@ -7,7 +7,7 @@
 #define FASTBOOT_INTERFACE_PROTOCOL	0x03
 #define FASTBOOT_VERSION		"0.4"
 
-extern struct fastboot_config fb_cfg;
+extern struct fastboot_config fastboot_cfg;
 extern struct usb_ep *ep_in;
 extern struct usb_request *req_in;
 extern struct usb_ep *ep_out;
@@ -16,5 +16,8 @@ extern struct usb_request *req_out;
 void rx_handler_command(struct usb_ep *ep, struct usb_request *req);
 int fastboot_tx_write(const char *buffer, unsigned int buffer_size);
 const char *fb_find_usb_string(unsigned int id);
+
+extern int handle_flash(char *part_name, char *response);
+extern int do_format(void);
 
 #endif
