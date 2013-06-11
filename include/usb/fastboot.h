@@ -106,6 +106,12 @@ struct fastboot_config {
 
 	/* Data downloaded so far */
 	unsigned int download_bytes;
+
+	unsigned int nand_block_size;
+
+	unsigned int nand_oob_size;
+
+	unsigned int download_bytes_unpadded;
 };
 
 #define FB_STR_PRODUCT_IDX      1

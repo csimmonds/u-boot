@@ -310,7 +310,7 @@ int setenv_addr(const char *varname, const void *addr)
 }
 
 #ifndef CONFIG_SPL_BUILD
-static int do_env_set(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_env_set(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc < 2)
 		return CMD_RET_USAGE;

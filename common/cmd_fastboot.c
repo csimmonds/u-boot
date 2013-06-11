@@ -51,6 +51,10 @@ int fastboot_board_init(struct fastboot_config *interface,
 
 	interface->transfer_buffer = CFG_FASTBOOT_TRANSFER_BUFFER;
 	interface->transfer_buffer_size = CONFIG_FASTBOOT_MAX_TRANSFER_SIZE;
+	interface->nand_block_size  = FASTBOOT_NAND_BLOCK_SIZE;
+	interface->nand_oob_size  = FASTBOOT_NAND_OOB_SIZE;
+	interface->download_bytes = 0;
+	interface->download_size = 0;
 
 	*str = &def_fb_strings;
 	return 0;

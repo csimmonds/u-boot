@@ -457,6 +457,12 @@
 
 #define CONFIG_FASTBOOT_MAX_TRANSFER_SIZE	(SZ_256M - SZ_16M)
 
+#define FASTBOOT_NAND_BLOCK_SIZE                2048
+#define FASTBOOT_NAND_OOB_SIZE                  64
+
+#define CONFIG_FASTBOOT_NAND
+#define NAND_ENV_OFFSET                0x260000 /* environment starts here */
+
 /* ethernet gadget conflicts with fastboot, so disabled */
 /*
 #define CONFIG_USB_ETHER

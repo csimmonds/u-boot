@@ -57,7 +57,12 @@ endif
 endif
 
 ifdef CONFIG_CMD_FASTBOOT
-COBJS-y += f_fastboot.o u_fastboot.o u_fastboot_mmc.o
+COBJS-y += f_fastboot.o u_fastboot.o
+ifdef CONFIG_FASTBOOT_NAND
+COBJS-y += u_fastboot_nand.o
+else
+COBJS-y += u_fastboot_mmc.o
+endif
 endif
 
 COBJS	:= $(COBJS-y)
