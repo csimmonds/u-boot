@@ -487,12 +487,23 @@ void am33xx_spl_board_init(void)
 				       usb_cur_lim, USB_INPUT_CUR_LIMIT_MASK))
 			printf("tps65217_reg_write failure\n");
 
+		/* Set DCDC3 (CORE) voltage to 1.125V */
+		if (tps65217_voltage_update(DEFDCDC3, DCDC_VOLT_SEL_1125MV)) {
+			printf("tps65217_voltage_update failure\n");
+			return;
+		}
+
+		/* Set CORE Frequency to what we detected */
+		core_pll_config(OPP_100);
 
 		/* Set DCDC2 (MPU) voltage to 1.275V */
 		if (tps65217_voltage_update(DEFDCDC2, mpu_vdd)) {
 			printf("tps65217_voltage_update failure\n");
 			return;
 		}
+
+		/* Set MPU Frequency to what we detected */
+		mpu_pll_config(mpu_pll);
 
 		/*
 		 * Set LDO3, LDO4 output voltage to 3.3V for Beaglebone.
@@ -518,9 +529,6 @@ void am33xx_spl_board_init(void)
 			printf("No AC power, disabling frequency switch\n");
 			return;
 		}
-
-		/* Set MPU Frequency to what we detected */
-		mpu_pll_config(mpu_pll);
 	} else {
 		uchar buf[4];
 
@@ -552,10 +560,10 @@ void am33xx_spl_board_init(void)
 		else
 			mpu_vdd = PMIC_OP_REG_SEL_1_2_6;
 
-		if (!voltage_update(MPU, mpu_vdd) &&
-				!voltage_update(CORE, PMIC_OP_REG_SEL_1_1_3)) {
+		if (!voltage_update(CORE, PMIC_OP_REG_SEL_1_1_3))
+			core_pll_config(OPP_100);
+		if (!voltage_update(MPU, mpu_vdd))
 			mpu_pll_config(mpu_pll);
-		}
 	}
 }
 #endif

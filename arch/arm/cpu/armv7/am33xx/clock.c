@@ -240,7 +240,7 @@ void mpu_pll_config(int mpupll_M)
 		;
 }
 
-static void core_pll_config(void)
+void core_pll_config(int opp)
 {
 	u32 clkmode, clksel, div_m4, div_m5, div_m6;
 
@@ -254,29 +254,53 @@ static void core_pll_config(void)
 	writel(PLL_BYPASS_MODE, &cmwkup->clkmoddpllcore);
 
 	while (readl(&cmwkup->idlestdpllcore) != ST_MN_BYPASS)
+			;
+	if (opp == OPP_50) {
+		clksel = clksel & (~CLK_SEL_MASK);
+		clksel = clksel | ((COREPLL_M_OPP50 << CLK_SEL_SHIFT)
+				| COREPLL_N);
+		writel(clksel, &cmwkup->clkseldpllcore);
+
+		div_m4 = div_m4 & ~CLK_DIV_MASK;
+		div_m4 = div_m4 | COREPLL_M4_OPP50;
+		writel(div_m4, &cmwkup->divm4dpllcore);
+
+		div_m5 = div_m5 & ~CLK_DIV_MASK;
+		div_m5 = div_m5 | COREPLL_M5_OPP50;
+		writel(div_m5, &cmwkup->divm5dpllcore);
+
+		div_m6 = div_m6 & ~CLK_DIV_MASK;
+		div_m6 = div_m6 | COREPLL_M6_OPP50;
+		writel(div_m6, &cmwkup->divm6dpllcore);
+
+		clkmode = clkmode | CLK_MODE_SEL;
+		writel(clkmode, &cmwkup->clkmoddpllcore);
+
+		while (readl(&cmwkup->idlestdpllcore) != ST_DPLL_CLK)
 		;
+	} else {
+		clksel = clksel & (~CLK_SEL_MASK);
+		clksel = clksel | ((COREPLL_M << CLK_SEL_SHIFT) | COREPLL_N);
+		writel(clksel, &cmwkup->clkseldpllcore);
 
-	clksel = clksel & (~CLK_SEL_MASK);
-	clksel = clksel | ((COREPLL_M << CLK_SEL_SHIFT) | COREPLL_N);
-	writel(clksel, &cmwkup->clkseldpllcore);
+		div_m4 = div_m4 & ~CLK_DIV_MASK;
+		div_m4 = div_m4 | COREPLL_M4;
+		writel(div_m4, &cmwkup->divm4dpllcore);
 
-	div_m4 = div_m4 & ~CLK_DIV_MASK;
-	div_m4 = div_m4 | COREPLL_M4;
-	writel(div_m4, &cmwkup->divm4dpllcore);
+		div_m5 = div_m5 & ~CLK_DIV_MASK;
+		div_m5 = div_m5 | COREPLL_M5;
+		writel(div_m5, &cmwkup->divm5dpllcore);
 
-	div_m5 = div_m5 & ~CLK_DIV_MASK;
-	div_m5 = div_m5 | COREPLL_M5;
-	writel(div_m5, &cmwkup->divm5dpllcore);
+		div_m6 = div_m6 & ~CLK_DIV_MASK;
+		div_m6 = div_m6 | COREPLL_M6;
+		writel(div_m6, &cmwkup->divm6dpllcore);
 
-	div_m6 = div_m6 & ~CLK_DIV_MASK;
-	div_m6 = div_m6 | COREPLL_M6;
-	writel(div_m6, &cmwkup->divm6dpllcore);
+		clkmode = clkmode | CLK_MODE_SEL;
+		writel(clkmode, &cmwkup->clkmoddpllcore);
 
-	clkmode = clkmode | CLK_MODE_SEL;
-	writel(clkmode, &cmwkup->clkmoddpllcore);
-
-	while (readl(&cmwkup->idlestdpllcore) != ST_DPLL_CLK)
+		while (readl(&cmwkup->idlestdpllcore) != ST_DPLL_CLK)
 		;
+	}
 }
 
 static void per_pll_config(void)
@@ -360,8 +384,8 @@ void enable_emif_clocks(void)
 void pll_init()
 {
 	/* Start at 550MHz, will be tweaked up if possible. */
-	mpu_pll_config(MPUPLL_M_550);
-	core_pll_config();
+	mpu_pll_config(MPUPLL_M_300);
+	core_pll_config(OPP_50);
 	per_pll_config();
 
 	/* Enable the required interconnect clocks */
