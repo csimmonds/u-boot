@@ -33,6 +33,7 @@ u32 get_device_type(void);
 void setup_clocks_for_console(void);
 void ddr_pll_config(unsigned int ddrpll_M);
 void mpu_pll_config(int mpupll_M);
+void core_pll_config(int opp);
 void sdelay(unsigned long);
 void gpmc_init(void);
 void omap_nand_switch_ecc(int);
