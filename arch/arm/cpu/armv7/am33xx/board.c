@@ -149,3 +149,23 @@ int arch_misc_init(void)
 #endif
 	return 0;
 }
+
+#if 0
+void s_init(void)
+{
+#ifdef CONFIG_NOR_BOOT
+	asm("stmfd      sp!, {r2 - r4}");
+	asm("movw       r4, #0x8A4");
+	asm("movw       r3, #0x44E1");
+	asm("orr        r4, r4, r3, lsl #16");
+	asm("mov        r2, #9");
+	asm("mov        r3, #8");
+	asm("gpmc_mux:  str     r2, [r4], #4");
+	asm("subs       r3, r3, #1");
+	asm("bne        gpmc_mux");
+	asm("ldmfd      sp!, {r2 - r4}");
+#endif
+
+	s1_init();
+}
+#endif
