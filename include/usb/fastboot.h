@@ -100,6 +100,12 @@ struct fastboot_config {
 
 	/* Size of the buffer mentioned above */
 	unsigned int transfer_buffer_size;
+
+	/* Total data to be downloaded */
+	unsigned int download_size;
+
+	/* Data downloaded so far */
+	unsigned int download_bytes;
 };
 
 #define FB_STR_PRODUCT_IDX      1

@@ -69,9 +69,6 @@
 
 struct fastboot_config fb_cfg;
 
-static unsigned int download_size;
-static unsigned int download_bytes;
-
 /* To support the Android-style naming of flash */
 #define MAX_PTN 16
 static fastboot_ptentry ptable[MAX_PTN];
@@ -204,7 +201,7 @@ static void cb_getvar(struct usb_ep *ep, struct usb_request *req)
 
 static unsigned int rx_bytes_expected(void)
 {
-	int rx_remain = download_size - download_bytes;
+	int rx_remain = fb_cfg.download_size - fb_cfg.download_bytes;
 	if (rx_remain < 0)
 		return 0;
 	if (rx_remain > EP_BUFFER_SIZE)
@@ -216,7 +213,7 @@ static unsigned int rx_bytes_expected(void)
 static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 {
 	char response[RESPONSE_LEN];
-	unsigned int transfer_size = download_size - download_bytes;
+	unsigned int transfer_size = fb_cfg.download_size - fb_cfg.download_bytes;
 	const unsigned char *buffer = req->buf;
 	unsigned int buffer_size = req->actual;
 	int dnl_complete = 0;
@@ -229,29 +226,29 @@ static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 	if (buffer_size < transfer_size)
 		transfer_size = buffer_size;
 
-	memcpy(fb_cfg.transfer_buffer + download_bytes,
+	memcpy(fb_cfg.transfer_buffer + fb_cfg.download_bytes,
 			buffer, transfer_size);
 
-	download_bytes += transfer_size;
+	fb_cfg.download_bytes += transfer_size;
 
 	/* Check if transfer is done */
-	if (download_bytes >= download_size) {
+	if (fb_cfg.download_bytes >= fb_cfg.download_size) {
 		/*
-		 * Reset global transfer variable, keep download_bytes because
+		 * Reset global transfer variable, keep fb_cfg.download_bytes because
 		 * it will be used in the next possible flashing command
 		 */
-		download_size = 0;
+		fb_cfg.download_size = 0;
 		req->complete = rx_handler_command;
 		req->length = EP_BUFFER_SIZE;
 		dnl_complete = 1;
 		printf("\ndownloading of %d bytes finished\n",
-				download_bytes);
+				fb_cfg.download_bytes);
 	} else
 		req->length = rx_bytes_expected();
 
-	if (download_bytes && !(download_bytes % BYTES_PER_DOT)) {
+	if (fb_cfg.download_bytes && !(fb_cfg.download_bytes % BYTES_PER_DOT)) {
 		printf(".");
-		if (!(download_bytes % (74 * BYTES_PER_DOT)))
+		if (!(fb_cfg.download_bytes % (74 * BYTES_PER_DOT)))
 				printf("\n");
 
 	}
@@ -269,20 +266,20 @@ static void cb_download(struct usb_ep *ep, struct usb_request *req)
 	char response[RESPONSE_LEN];
 
 	strsep(&cmd, ":");
-	download_size = simple_strtoul(cmd, NULL, 16);
-	download_bytes = 0;
+	fb_cfg.download_size = simple_strtoul(cmd, NULL, 16);
+	fb_cfg.download_bytes = 0;
 
 	printf("Starting download of %d bytes\n",
-			download_size);
+			fb_cfg.download_size);
 
-	if (0 == download_size) {
+	if (0 == fb_cfg.download_size) {
 		sprintf(response, "FAILdata invalid size");
-	} else if (download_size >
+	} else if (fb_cfg.download_size >
 			fb_cfg.transfer_buffer_size) {
-		download_size = 0;
+		fb_cfg.download_size = 0;
 		sprintf(response, "FAILdata too large");
 	} else {
-		sprintf(response, "DATA%08x", download_size);
+		sprintf(response, "DATA%08x", fb_cfg.download_size);
 		req->complete = rx_handler_dl_image;
 		req->length = rx_bytes_expected();
 	}
@@ -330,7 +327,7 @@ static int handle_flash_emmc(char *part_name, char *response)
 {
         int status = 0;
 
-        if (download_bytes) {
+        if (fb_cfg.download_bytes) {
                 struct fastboot_ptentry *ptn;
 
                 /* Next is the partition name */
@@ -339,7 +336,7 @@ static int handle_flash_emmc(char *part_name, char *response)
                 if (ptn == 0) {
                         printf("Partition:[%s] does not exist\n", part_name);
                         sprintf(response, "FAILpartition does not exist");
-                } else if ((download_bytes > ptn->length) &&
+                } else if ((fb_cfg.download_bytes > ptn->length) &&
                                         !(ptn->flags & FASTBOOT_PTENTRY_FLAGS_WRITE_ENV)) {
                         printf("Image too large for the partition\n");
                         sprintf(response, "FAILimage too large for partition");
@@ -352,12 +349,12 @@ static int handle_flash_emmc(char *part_name, char *response)
                          * env variables So replace New line Feeds (0x0a) with
                          * NULL (0x00)
                          */
-                        for (i = 0; i < download_bytes; i++) {
+                        for (i = 0; i < fb_cfg.download_bytes; i++) {
                                 if (fb_cfg.transfer_buffer[i] == 0x0a)
                                         fb_cfg.transfer_buffer[i] = 0x00;
                         }
                         memset(env_ptr->data, 0, ENV_SIZE);
-                        memcpy(env_ptr->data, fb_cfg.transfer_buffer, download_bytes);
+                        memcpy(env_ptr->data, fb_cfg.transfer_buffer, fb_cfg.download_bytes);
                         do_env_save(NULL, 0, 1, NULL);
                         printf("saveenv to '%s' DONE!\n", ptn->name);
                         sprintf(response, "OKAY");
@@ -378,7 +375,7 @@ static int handle_flash_emmc(char *part_name, char *response)
 
                         sprintf(source, "0x%x", fb_cfg.transfer_buffer);
                         sprintf(dest, "0x%x", ptn->start);
-                        sprintf(length, "0x%x", (download_bytes/512)+1);
+                        sprintf(length, "0x%x", (fb_cfg.download_bytes/512)+1);
 
                         printf("Initializing '%s'\n", ptn->name);
                         if (do_mmcops(NULL, 0, 2, mmc_init))
