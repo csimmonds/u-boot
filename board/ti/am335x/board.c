@@ -414,7 +414,8 @@ static struct emif_regs ddr3_beagleblack_emif_reg_data = {
 	.sdram_tim2 = MT41K256M16HA125E_EMIF_TIM2,
 	.sdram_tim3 = MT41K256M16HA125E_EMIF_TIM3,
 	.zq_config = MT41K256M16HA125E_ZQ_CFG,
-	.emif_ddr_phy_ctlr_1 = MT41K256M16HA125E_EMIF_READ_LATENCY,
+	.emif_ddr_phy_ctlr_1 = MT41K256M16HA125E_EMIF_READ_LATENCY |
+				PHY_EN_DYN_PWRDN,
 };
 
 static struct emif_regs ddr3_evm_emif_reg_data = {
@@ -490,7 +491,6 @@ void am33xx_spl_board_init(void)
 				       usb_cur_lim, USB_INPUT_CUR_LIMIT_MASK))
 			printf("tps65217_reg_write failure\n");
 
-
 		/* Set DCDC3 (CORE) voltage to 1.125V */
 		if (tps65217_voltage_update(DEFDCDC3, DCDC_VOLT_SEL_1125MV)) {
 			printf("tps65217_voltage_update failure\n");
@@ -509,7 +509,7 @@ void am33xx_spl_board_init(void)
 		/* Set MPU Frequency to what we detected */
 		mpu_pll_config(mpu_pll);
 
-		/* 
+		/*
 		 * Set LDO3, LDO4 output voltage to 3.3V for Beaglebone.
 		 * Set LDO3 to 1.8V and LDO4 to 3.3V for Beaglebone Black.
 		 */
