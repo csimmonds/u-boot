@@ -463,7 +463,7 @@
 #define CONFIG_MMC_FASTBOOT_DEV			1
 
 /*Comment out this to enable eMMC fastboot*/
-#define CONFIG_FASTBOOT_NAND
+/*#define CONFIG_FASTBOOT_NAND */
 #define NAND_ENV_OFFSET                0x260000 /* environment starts here */
 
 /* ethernet gadget conflicts with fastboot, so disabled */
