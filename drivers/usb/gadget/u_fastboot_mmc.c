@@ -320,7 +320,7 @@ int do_format(void)
 
 	printf("\ndo_format ..!!");
 	/* get mmc info */
-	struct mmc *mmc = find_mmc_device(0);
+	struct mmc *mmc = find_mmc_device(CONFIG_MMC_FASTBOOT_DEV);
 	if (mmc == 0) {
 		printf("no mmc device at slot 0");
 		return -1;
@@ -363,6 +363,17 @@ int do_format(void)
 	/* 10/11:modified as per PSP release support */
 	char *mmc_write[5]  = {"mmc", "write", NULL, NULL, NULL};
 	char source[32], dest[32], length[32];
+
+	char dev[2];
+	char *mmc_dev[3] = {"mmc", "dev", NULL};
+
+	mmc_dev[2] = dev;
+	sprintf(dev,"0x%x", CONFIG_MMC_FASTBOOT_DEV);
+
+	if (do_mmcops(NULL, 0, 3, mmc_dev)) {
+		printf("MMC DEV: %d selection FAILED!\n", CONFIG_MMC_FASTBOOT_DEV);
+		return -1;
+	}
 
 	mmc_write[2] = source;
 	mmc_write[3] = dest;
@@ -432,9 +443,18 @@ int handle_flash(char *part_name, char *response)
                         dest[0] = '\0';
                         length[0] = '\0';
 
-                        printf("writing to partition '%s'\n", ptn->name);
                         char *mmc_write[5]  = {"mmc", "write", NULL, NULL, NULL};
                         char *mmc_init[2] = {"mmc", "rescan",};
+			char dev[2];
+			char *mmc_dev[3] = {"mmc", "dev", NULL};
+
+			mmc_dev[2] = dev;
+			sprintf(dev,"0x%x", CONFIG_MMC_FASTBOOT_DEV);
+
+			if (do_mmcops(NULL, 0, 3, mmc_dev)) {
+				printf("MMC DEV: %d selection FAILED!\n", CONFIG_MMC_FASTBOOT_DEV);
+				return -1;
+			}
 
                         mmc_write[2] = source;
                         mmc_write[3] = dest;

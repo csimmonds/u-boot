@@ -460,6 +460,9 @@
 #define FASTBOOT_NAND_BLOCK_SIZE                2048
 #define FASTBOOT_NAND_OOB_SIZE                  64
 
+#define CONFIG_MMC_FASTBOOT_DEV			1
+
+/*Comment out this to enable eMMC fastboot*/
 #define CONFIG_FASTBOOT_NAND
 #define NAND_ENV_OFFSET                0x260000 /* environment starts here */
 
