@@ -151,53 +151,6 @@
 
 #endif
 
-#ifndef CONFIG_RESTORE_FLASH
-#define CONFIG_BOOTCOMMAND \
-	"mmc dev ${mmcdev}; if mmc rescan; then " \
-		"echo SD/MMC found on device ${mmcdev};" \
-		"if run loadbootenv; then " \
-			"echo Loaded environment from ${bootenv};" \
-			"run importbootenv;" \
-		"fi;" \
-		"if test -n $uenvcmd; then " \
-			"echo Running uenvcmd ...;" \
-			"run uenvcmd;" \
-		"fi;" \
-		"if run loaduimagefat; then " \
-			"run mmcboot;" \
-		"elif run loaduimage; then " \
-			"run mmcboot;" \
-		"else " \
-			"echo Could not find ${bootfile} ;" \
-		"fi;" \
-	"else " \
-		"run nandboot;" \
-	"fi;" \
-
-#else
-
-#undef CONFIG_BOOTDELAY
-#define CONFIG_BOOTDELAY	0
-
-#ifdef CONFIG_SPL_USBETH_SUPPORT
-#define CONFIG_BOOTCOMMAND \
-	"setenv autoload no; " \
-	"setenv ethact usb_ether; " \
-	"dhcp; "	\
-	"if tftp 80000000 debrick.scr; then "	\
-		"source 80000000; "	\
-	"fi"
-#else
-#define CONFIG_BOOTCOMMAND \
-	"setenv autoload no; " \
-	"setenv ethact cpsw; " \
-	"dhcp; "	\
-	"if tftp 80000000 debrick.scr; then "	\
-		"source 80000000; "	\
-	"fi"
-#endif
-#endif
-
 /* Clock Defines */
 #define V_OSCK				24000000  /* Clock output from T2 */
 #define V_SCLK				(V_OSCK)
@@ -472,6 +425,61 @@
 #define CONFIG_USB_ETH_RNDIS
 #define CONFIG_USBNET_HOST_ADDR	"de:ad:be:af:00:00"*/
 #endif /* CONFIG_MUSB_GADGET */
+
+#if CONFIG_MMC_FASTBOOT_DEV == 0
+#define CONFIG_BOOTCOMMAND \
+	"booti mmc0"
+#elif CONFIG_MMC_FASTBOOT_DEV == 1
+#define CONFIG_BOOTCOMMAND \
+	"booti mmc1"
+#else
+#ifndef CONFIG_RESTORE_FLASH
+#define CONFIG_BOOTCOMMAND \
+	"mmc dev ${mmcdev}; if mmc rescan; then " \
+		"echo SD/MMC found on device ${mmcdev};" \
+		"if run loadbootenv; then " \
+			"echo Loaded environment from ${bootenv};" \
+			"run importbootenv;" \
+		"fi;" \
+		"if test -n $uenvcmd; then " \
+			"echo Running uenvcmd ...;" \
+			"run uenvcmd;" \
+		"fi;" \
+		"if run loaduimagefat; then " \
+			"run mmcboot;" \
+		"elif run loaduimage; then " \
+			"run mmcboot;" \
+		"else " \
+			"echo Could not find ${bootfile} ;" \
+		"fi;" \
+	"else " \
+		"run nandboot;" \
+	"fi;" \
+
+#else
+
+#undef CONFIG_BOOTDELAY
+#define CONFIG_BOOTDELAY	0
+
+#ifdef CONFIG_SPL_USBETH_SUPPORT
+#define CONFIG_BOOTCOMMAND \
+	"setenv autoload no; " \
+	"setenv ethact usb_ether; " \
+	"dhcp; "	\
+	"if tftp 80000000 debrick.scr; then "	\
+		"source 80000000; "	\
+	"fi"
+#else
+#define CONFIG_BOOTCOMMAND \
+	"setenv autoload no; " \
+	"setenv ethact cpsw; " \
+	"dhcp; "	\
+	"if tftp 80000000 debrick.scr; then "	\
+		"source 80000000; "	\
+	"fi"
+#endif
+#endif
+#endif
 
 /*
  * Default to using SPI for environment, etc.  We have multiple copies

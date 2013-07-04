@@ -322,7 +322,7 @@ int do_format(void)
 	/* get mmc info */
 	struct mmc *mmc = find_mmc_device(CONFIG_MMC_FASTBOOT_DEV);
 	if (mmc == 0) {
-		printf("no mmc device at slot 0");
+		printf("no mmc device at slot %d", CONFIG_MMC_FASTBOOT_DEV);
 		return -1;
 	}
 
@@ -483,5 +483,28 @@ int handle_flash(char *part_name, char *response)
                 sprintf(response, "FAILno image downloaded");
         }
 
+}
+
+int board_mmc_fbtptn_init(void)
+{
+        char *mmc_init[2] = {"mmc", "rescan",};
+	char dev[2];
+	char *mmc_dev[3] = {"mmc", "dev", NULL};
+
+	mmc_dev[2] = dev;
+	sprintf(dev,"0x%x", CONFIG_MMC_FASTBOOT_DEV);
+
+	if (do_mmcops(NULL, 0, 3, mmc_dev)) {
+		printf("MMC DEV: %d selection FAILED!\n", CONFIG_MMC_FASTBOOT_DEV);
+		return -1;
+	}
+
+        if (do_mmcops(NULL, 0, 2, mmc_init)) {
+                printf("FAIL:Init of MMC card\n");
+                return 1;
+        }
+
+        printf("Loading efi partition table:\n");
+        return load_ptbl();
 }
 
