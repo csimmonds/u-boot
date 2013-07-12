@@ -415,8 +415,12 @@
 
 #define CONFIG_MMC_FASTBOOT_DEV			1
 
-/*Comment out this to enable eMMC fastboot*/
+/*Uncomment this to enable NAND fastboot*/
 /*#define CONFIG_FASTBOOT_NAND */
+
+/*Uncomment this to support eMMC booting*/
+/*#define CONFIG_STORAGE_EMMC */
+
 #define NAND_ENV_OFFSET                0x260000 /* environment starts here */
 
 /* ethernet gadget conflicts with fastboot, so disabled */
@@ -426,12 +430,16 @@
 #define CONFIG_USBNET_HOST_ADDR	"de:ad:be:af:00:00"*/
 #endif /* CONFIG_MUSB_GADGET */
 
+
+#ifdef CONFIG_STORAGE_EMMC
 #if CONFIG_MMC_FASTBOOT_DEV == 0
 #define CONFIG_BOOTCOMMAND \
 	"booti mmc0"
-#elif CONFIG_MMC_FASTBOOT_DEV == 1
+#endif
+#if CONFIG_MMC_FASTBOOT_DEV == 1
 #define CONFIG_BOOTCOMMAND \
 	"booti mmc1"
+#endif
 #else
 #ifndef CONFIG_RESTORE_FLASH
 #define CONFIG_BOOTCOMMAND \
