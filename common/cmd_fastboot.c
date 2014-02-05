@@ -29,7 +29,7 @@
 static char serial_number[28] = "001234";
 
 static struct usb_string def_usb_fb_strings[] = {
-	{ FB_STR_PRODUCT_IDX,		"AM335xevm" },
+	{ FB_STR_PRODUCT_IDX,		"beagleboneblack" },
 	{ FB_STR_SERIAL_IDX,		serial_number },
 	{ FB_STR_PROC_REV_IDX,		"ES2.x" },
 	{ FB_STR_PROC_TYPE_IDX,		"ARMv7" },

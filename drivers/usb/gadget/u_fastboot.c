@@ -211,7 +211,7 @@ static unsigned int rx_bytes_expected(void)
 	return rx_remain;
 }
 
-#define BYTES_PER_DOT	32768
+#define BYTES_PER_DOT	1048576
 static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 {
 	char response[RESPONSE_LEN];

@@ -400,15 +400,16 @@
 #define FASTBOOT_DEVICE_PRODUCT_ID	0xd022 /* TI fastboot PID */
 #define FASTBOOT_DEVICE_BCD		0x0100
 /*
+ * This download size works for the BeagleBone black which has 512MB.
  * BeagleBone white, AM335x-SK and old AM335xEVMs have only 256MB RAM
- * To be compatible with all devices, assume 256MB max RAM.
+ * so it will not work with them...
  *
  * The current fastboot implementation assumes maximum 16MB of RAM
  * will be used by u-boot itself. So the fastboot transfer buffer
- * becomes (256-16)=240MB
+ * becomes (512-16)=496MB
  */
 
-#define CONFIG_FASTBOOT_MAX_TRANSFER_SIZE	(SZ_256M - SZ_16M)
+#define CONFIG_FASTBOOT_MAX_TRANSFER_SIZE	(SZ_512M - SZ_16M)
 
 #define FASTBOOT_NAND_BLOCK_SIZE                2048
 #define FASTBOOT_NAND_OOB_SIZE                  64
