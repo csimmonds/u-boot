@@ -416,7 +416,6 @@ void do_booti_linux(boot_img_hdr *hdr)
 	ulong initrd_start, initrd_end;
 	void (*theKernel)(int zero, int arch, uint params);
 	bd_t *bd = gd->bd;
-
 	theKernel = (void (*)(int, int, uint))(hdr->kernel_addr);
 
 	initrd_start = hdr->ramdisk_addr;
@@ -447,11 +446,12 @@ void do_booti_linux(boot_img_hdr *hdr)
 #endif
 
 	/* we assume that the kernel is in place */
-	printf("\nStarting kernel ...\n\n");
+	printf("Starting kernel ...\n");
 
-	printf("\nCleanup before kernel ...\n\n");
+//	printf("Cleanup before kernel ...\n");
 	cleanup_before_linux();
 
-	printf("\nStarting kernel, theKernel ...\n\n");
+//	printf("Starting kernel, theKernel ...\n");
 	theKernel(0, bd->bi_arch_number, bd->bi_boot_params);
 }
+
