@@ -420,7 +420,7 @@
 /*#define CONFIG_FASTBOOT_NAND */
 
 /*Uncomment this to support eMMC booting*/
-/*#define CONFIG_STORAGE_EMMC */
+#define CONFIG_STORAGE_EMMC 
 
 #define NAND_ENV_OFFSET                0x260000 /* environment starts here */
 
@@ -435,11 +435,11 @@
 #ifdef CONFIG_STORAGE_EMMC
 #if CONFIG_MMC_FASTBOOT_DEV == 0
 #define CONFIG_BOOTCOMMAND \
-	"booti mmc0"
+	"booti mmc0 2"
 #endif
 #if CONFIG_MMC_FASTBOOT_DEV == 1
 #define CONFIG_BOOTCOMMAND \
-	"booti mmc1"
+	"booti mmc1 2"
 #endif
 #else
 #ifndef CONFIG_RESTORE_FLASH
