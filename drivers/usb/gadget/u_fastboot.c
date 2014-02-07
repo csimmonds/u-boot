@@ -73,7 +73,6 @@ static struct fastboot_config *fb_cfg;
 #define MAX_PTN 16
 static fastboot_ptentry ptable[MAX_PTN];
 static unsigned int pcount;
-static int static_pcount = -1;
 
 void set_fb_config (struct fastboot_config *cfg)
 {
@@ -344,6 +343,19 @@ static void cb_flash(struct usb_ep *ep, struct usb_request *req)
 	handle_flash(part_name, response);
 	fastboot_tx_write_str(response);
 }
+
+/* Erase partition: dummy for the time being */
+static void cb_erase(struct usb_ep *ep, struct usb_request *req)
+{
+	char *cmdbuf = req->buf;
+	char *response = "OKAY";
+	char part_name[20]={0,};
+
+	strncpy (part_name, cmdbuf + 6, req->actual - 6);
+	printf("Erasing '%s'\n", part_name);
+	fastboot_tx_write_str(response);
+}
+
 struct cmd_dispatch_info {
 	char *cmd;
 	void (*cb)(struct usb_ep *ep, struct usb_request *req);
@@ -368,6 +380,9 @@ static struct cmd_dispatch_info cmd_dispatch_info[] = {
 	},{
 		.cmd = "flash:",
 		.cb = cb_flash,
+	},{
+		.cmd = "erase:",
+		.cb = cb_erase,
 	},
 };
 
