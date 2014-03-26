@@ -88,6 +88,7 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	int ret = 1;
 
 	if (!fastboot_init()) {
+		board_mmc_fbtptn_init();
 		printf("Fastboot entered...\n");
 
 		ret = 0;
