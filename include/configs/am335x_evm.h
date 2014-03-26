@@ -73,6 +73,7 @@
 	"mmcdev=0\0" \
 	"mmcroot=/dev/mmcblk0p2 ro\0" \
 	"mmcrootfstype=ext3 rootwait\0" \
+	"mmcsilent=true\0" \
 	"nandroot=ubi0:rootfs rw ubi.mtd=7,2048\0" \
 	"nandrootfstype=ubifs rootwait=1\0" \
 	"nandsrcaddr=0x280000\0" \
@@ -408,7 +409,10 @@
  * becomes (256-16)=240MB
  */
 
-#define CONFIG_FASTBOOT_MAX_TRANSFER_SIZE	(SZ_256M - SZ_16M)
+/* #define CONFIG_FASTBOOT_MAX_TRANSFER_SIZE	(SZ_256M - SZ_16M) */
+/* If using BeagleBone Black you can use the full RAM and so
+   flash larger images */
+#define CONFIG_FASTBOOT_MAX_TRANSFER_SIZE	(SZ_512M - SZ_16M)
 
 #define FASTBOOT_NAND_BLOCK_SIZE                2048
 #define FASTBOOT_NAND_OOB_SIZE                  64
@@ -419,7 +423,7 @@
 /*#define CONFIG_FASTBOOT_NAND */
 
 /*Uncomment this to support eMMC booting*/
-/*#define CONFIG_STORAGE_EMMC */
+#define CONFIG_STORAGE_EMMC
 
 #define NAND_ENV_OFFSET                0x260000 /* environment starts here */
 
