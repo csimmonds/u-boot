@@ -64,6 +64,7 @@
 #include "g_fastboot.h"
 #include <environment.h>
 #include <mmc.h>
+#include <sparse_format.h>
 
 #define EFI_VERSION 0x00010000
 #define EFI_ENTRIES 128
@@ -401,6 +402,90 @@ struct fastboot_config fastboot_cfg;
 extern env_t *env_ptr;
 extern int do_env_save (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 
+static int write_mmc_chunk(unsigned int source, unsigned int dest_sector, unsigned int num_sectors)
+{
+	char s_source[32], s_dest[32], s_length[32];
+	char *mmc_write[5]  = {"mmc", "write", NULL, NULL, NULL};
+	char dev[12];
+	char *mmc_dev[3] = {"mmc", "dev", NULL};
+
+	sprintf(s_source, "0x%x", source);
+	sprintf(s_dest, "0x%x", dest_sector);
+	sprintf(s_length, "0x%x", num_sectors);
+	mmc_write[2] = s_source;
+	mmc_write[3] = s_dest;
+	mmc_write[4] = s_length;
+	sprintf(dev,"0x%x", CONFIG_MMC_FASTBOOT_DEV);
+	mmc_dev[2] = dev;
+
+//	printf("%s %s %s\n", s_source, s_dest, s_length);
+	if (do_mmcops(NULL, 0, 5, mmc_write)) {
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+static int flash_mmc_sparse_img(unsigned int ptn_start_sector)
+{
+	void *data;
+	unsigned int chunk;
+	unsigned int chunk_data_sz;
+	sparse_header_t *sparse_header;
+	chunk_header_t *chunk_header;
+	uint32_t total_blocks = 0;
+	uint32_t sectors_per_block;
+
+	data = fastboot_cfg.transfer_buffer;
+	sparse_header = (sparse_header_t *)data;
+#ifdef DEBUG_SPARSE
+	printf("=== Sparse Image Header ===\n");
+	printf("magic: 0x%x\n", sparse_header->magic);
+	printf("major_version: 0x%x\n", sparse_header->major_version);
+	printf("minor_version: 0x%x\n", sparse_header->minor_version);
+	printf("file_hdr_sz: %u\n", sparse_header->file_hdr_sz);
+	printf("chunk_hdr_sz: %u\n", sparse_header->chunk_hdr_sz);
+	printf("blk_sz: %u\n", sparse_header->blk_sz);
+	printf("total_blks: %u\n", sparse_header->total_blks);
+	printf("total_chunks: %u\n", sparse_header->total_chunks);
+#endif
+	data += sparse_header->file_hdr_sz;
+
+	sectors_per_block = sparse_header->blk_sz/512;
+
+	for (chunk = 0; chunk < sparse_header->total_chunks; chunk++) {
+		/* Read and skip over chunk header */
+		chunk_header = (chunk_header_t *)data;
+		data += sizeof(chunk_header_t);
+#ifdef DEBUG_SPARSE
+		printf("=== Chunk Header ===\n");
+		printf("chunk_type: 0x%x\n", chunk_header->chunk_type);
+		printf("chunk_data_sz: 0x%x\n", chunk_header->chunk_sz);
+		printf("total_size: 0x%x\n", chunk_header->total_sz);
+#endif
+		chunk_data_sz = sparse_header->blk_sz * chunk_header->chunk_sz;
+		switch (chunk_header->chunk_type) {
+			case CHUNK_TYPE_RAW:
+				if (write_mmc_chunk((unsigned int)data,
+						ptn_start_sector + (total_blocks * sectors_per_block),
+						chunk_header->chunk_sz * sectors_per_block) != 0) {
+					return -1;
+				}
+				data += chunk_data_sz;
+				break;
+			case CHUNK_TYPE_DONT_CARE:
+				break;
+			case CHUNK_TYPE_CRC32:
+				break;
+			default:
+				printf("Unknown chunk type\n");
+				return -1;
+		}
+		total_blocks += chunk_header->chunk_sz;
+	}
+	return 0;
+}
+
 int handle_flash(char *part_name, char *response)
 {
         int status = 0;
@@ -438,6 +523,7 @@ int handle_flash(char *part_name, char *response)
                         sprintf(response, "OKAY");
                 } else {
                         /* Normal case */
+			sparse_header_t *sparse_header;
                         char source[32], dest[32], length[32];
                         source[0] = '\0';
                         dest[0] = '\0';
@@ -445,7 +531,7 @@ int handle_flash(char *part_name, char *response)
 
                         char *mmc_write[5]  = {"mmc", "write", NULL, NULL, NULL};
                         char *mmc_init[2] = {"mmc", "rescan",};
-			char dev[2];
+			char dev[12];
 			char *mmc_dev[3] = {"mmc", "dev", NULL};
 
 			mmc_dev[2] = dev;
@@ -456,6 +542,25 @@ int handle_flash(char *part_name, char *response)
 				return -1;
 			}
 
+			printf("Initializing '%s'\n", ptn->name);
+			if (do_mmcops(NULL, 0, 2, mmc_init))
+				sprintf(response, "FAIL:Init of MMC card");
+			else
+				sprintf(response, "OKAY");
+
+			sparse_header = (sparse_header_t *)fastboot_cfg.transfer_buffer;
+			if (sparse_header->magic == SPARSE_HEADER_MAGIC) {
+				printf("Image is sparse format\n");
+				if (flash_mmc_sparse_img(ptn->start) == 0) {
+					sprintf(response, "OKAY");
+					printf("Writing '%s' DONE!\n", ptn->name);
+				} else {
+					sprintf(response, "FAIL: Write partition");
+					printf("Writing '%s' FAILED!\n", ptn->name);
+				}
+				return 0;
+			}
+
                         mmc_write[2] = source;
                         mmc_write[3] = dest;
                         mmc_write[4] = length;
@@ -463,12 +568,6 @@ int handle_flash(char *part_name, char *response)
                         sprintf(source, "0x%x", fastboot_cfg.transfer_buffer);
                         sprintf(dest, "0x%x", ptn->start);
                         sprintf(length, "0x%x", (fastboot_cfg.download_bytes/512)+1);
-
-                        printf("Initializing '%s'\n", ptn->name);
-                        if (do_mmcops(NULL, 0, 2, mmc_init))
-                                sprintf(response, "FAIL:Init of MMC card");
-                        else
-                                sprintf(response, "OKAY");
 
                         printf("Writing '%s'\n", ptn->name);
                         if (do_mmcops(NULL, 0, 5, mmc_write)) {
@@ -482,7 +581,7 @@ int handle_flash(char *part_name, char *response)
         } else {
                 sprintf(response, "FAILno image downloaded");
         }
-
+	return 0;
 }
 
 int board_mmc_fbtptn_init(void)
