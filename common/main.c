@@ -53,6 +53,10 @@
 #include <linux/ctype.h>
 #include <menu.h>
 
+#ifdef CONFIG_CMD_FASTBOOT
+#include <am335x_reboot.h>
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 /*
@@ -480,6 +484,25 @@ void main_loop (void)
 	debug ("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (bootdelay != -1 && s && !abortboot(bootdelay)) {
+#ifdef CONFIG_CMD_FASTBOOT
+		unsigned int reboot_reason;
+
+		reboot_reason = *(unsigned int *)REBOOT_REASON_PA;
+		/* printf("0x%x = %x\n", REBOOT_REASON_PA, reboot_reason); */
+		if (reboot_reason == REBOOT_FLAG_FASTBOOT)
+			run_command("fastboot", 0);
+		else if  (reboot_reason == REBOOT_FLAG_RECOVERY)
+			run_command("booti mmc1 recovery", 0);
+		else
+			run_command("booti mmc1", 0);
+
+		/* If either of the booti commands fail, default to fastboot */
+		run_command("fastboot", 0);
+
+		/* fastboot does not return, so we should never get to
+                   this point */
+#endif /* CONFIG_CMD_FASTBOOT */
+
 # ifdef CONFIG_AUTOBOOT_KEYED
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
 # endif

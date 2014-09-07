@@ -64,6 +64,8 @@
 #include "g_fastboot.h"
 #include <environment.h>
 
+#include <am335x_reboot.h>
+
 /* The 64 defined bytes plus \0 */
 #define RESPONSE_LEN	(64 + 1)
 
@@ -134,10 +136,17 @@ static void compl_do_reset(struct usb_ep *ep, struct usb_request *req)
 
 static void cb_reboot(struct usb_ep *ep, struct usb_request *req)
 {
+	*(unsigned int *)REBOOT_REASON_PA = REBOOT_FLAG_NORMAL;
 	req_in->complete = compl_do_reset;
 	fastboot_tx_write_str("OKAY");
 }
 
+static void cb_reboot_bootloader(struct usb_ep *ep, struct usb_request *req)
+{
+	*(unsigned int *)REBOOT_REASON_PA = REBOOT_FLAG_FASTBOOT;
+	req_in->complete = compl_do_reset;
+	fastboot_tx_write_str("OKAY");
+}
 static int strcmp_l1(const char *s1, const char *s2)
 {
 	return strncmp(s1, s2, strlen(s1));
@@ -350,7 +359,10 @@ struct cmd_dispatch_info {
 };
 
 static struct cmd_dispatch_info cmd_dispatch_info[] = {
-	{
+        {
+                .cmd = "reboot-bootloader",
+                .cb = cb_reboot_bootloader,
+        }, {
 		.cmd = "reboot",
 		.cb = cb_reboot,
 	}, {
