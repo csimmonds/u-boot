@@ -527,6 +527,23 @@ struct usb_gadget_driver fast_gadget = {
 	.disconnect	= fastboot_disconnect,
 };
 
+/* FIXME: move this board-specific code somewhere else */
+#define BEAGLEBONEBLACK_U0_LED_GPIO 53
+static void turn_fastboot_led_on(void)
+{
+	if (!gpio_request(BEAGLEBONEBLACK_U0_LED_GPIO, "fastboot")) {
+		gpio_direction_output(BEAGLEBONEBLACK_U0_LED_GPIO, 0);
+		gpio_set_value(BEAGLEBONEBLACK_U0_LED_GPIO, 1);
+	} else {
+		printf("gpio_request %d failed\n", BEAGLEBONEBLACK_U0_LED_GPIO);
+	}
+}
+
+static void turn_fastboot_led_off(void)
+{
+	gpio_set_value(BEAGLEBONEBLACK_U0_LED_GPIO, 0);
+}
+
 int fastboot_init(void)
 {
 	int ret;
@@ -538,7 +555,7 @@ int fastboot_init(void)
 		return -EINVAL;
 
 	set_fb_config(&fastboot_cfg);
-
+	turn_fastboot_led_on();
 	ret = usb_gadget_register_driver(&fast_gadget);
 	if (ret) {
 		printf("Add gadget failed\n");
@@ -566,7 +583,7 @@ int fastboot_poll(void)
 
 void fastboot_shutdown(void)
 {
-	/* TODO? */
+	turn_fastboot_led_off();
 }
 
 int fastboot_tx_write(const char *buffer, unsigned int buffer_size)
