@@ -87,9 +87,9 @@ static struct partition partitions[] = {
 	{ "-", 128 },			/* Reserved */
 	{ "recovery", 8*1024 },		/* Recovery partition  */
 	{ "boot", 8*1024 },		/* Partition contains kernel + ramdisk images */
-	{ "system", 256*1024 },		/* Android file system */
+	{ "system", 512*1024 },		/* Android file system */
 	{ "cache", 256*1024 },		/* Store Application Cache */
-	{ "userdata", 256*1024 },	/* User data */
+	{ "userdata", 1047*1024 },	/* User data */
 	{ "media", 0 },			/* Media files */
 	{ 0, 0 },
 };
