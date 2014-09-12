@@ -121,9 +121,18 @@
 	"loadramdisk=fatload mmc ${mmcdev} ${rdaddr} ramdisk.gz\0" \
 	"loaduimagefat=fatload mmc ${mmcdev} ${kloadaddr} ${bootfile}\0" \
 	"loaduimage=ext2load mmc ${mmcdev}:2 ${kloadaddr} /boot/${bootfile}\0" \
-	"mmcboot=echo Booting from mmc ...; " \
-		"run mmcargs; " \
-		"bootm ${kloadaddr}\0" \
+        "mmcboot=mmc dev ${mmcdev}; " \
+                "if mmc rescan; then " \
+                        "echo SD/MMC found on device ${mmcdev};" \
+                        "if run loadbootenv; then " \
+                                "echo Loaded environment from ${bootenv};" \
+                                "run importbootenv;" \
+                        "fi;" \
+                        "if test -n $uenvcmd; then " \
+                                "echo Running uenvcmd ...;" \
+                                "run uenvcmd;" \
+                        "fi;" \
+                "fi;\0" \
 	"nandboot=echo Booting from nand ...; " \
 		"run nandargs; " \
 		"nand read ${loadaddr} ${nandsrcaddr} ${nandimgsize}; " \
@@ -438,36 +447,21 @@
 #ifdef CONFIG_STORAGE_EMMC
 #if CONFIG_MMC_FASTBOOT_DEV == 0
 #define CONFIG_BOOTCOMMAND \
+	"run mmcboot;" \
 	"booti mmc0"
 #endif
 #if CONFIG_MMC_FASTBOOT_DEV == 1
 #define CONFIG_BOOTCOMMAND \
+	"run mmcboot;" \
 	"booti mmc1"
 #endif
 #else
 #ifndef CONFIG_RESTORE_FLASH
 #define CONFIG_BOOTCOMMAND \
-	"mmc dev ${mmcdev}; if mmc rescan; then " \
-		"echo SD/MMC found on device ${mmcdev};" \
-		"if run loadbootenv; then " \
-			"echo Loaded environment from ${bootenv};" \
-			"run importbootenv;" \
-		"fi;" \
-		"if test -n $uenvcmd; then " \
-			"echo Running uenvcmd ...;" \
-			"run uenvcmd;" \
-		"fi;" \
-		"if run loaduimagefat; then " \
-			"run mmcboot;" \
-		"elif run loaduimage; then " \
-			"run mmcboot;" \
-		"else " \
-			"echo Could not find ${bootfile} ;" \
-		"fi;" \
-	"else " \
-		"run nandboot;" \
-	"fi;" \
-
+        "run mmcboot;" \
+        "setenv mmcdev 1; " \
+        "setenv bootpart 1:2; " \
+        "run mmcboot;"
 #else
 
 #undef CONFIG_BOOTDELAY

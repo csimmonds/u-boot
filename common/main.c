@@ -494,9 +494,9 @@ void main_loop (void)
 		else if  (reboot_reason == REBOOT_FLAG_RECOVERY)
 			run_command("booti mmc1 recovery", 0);
 		else
-			run_command("booti mmc1", 0);
+			run_command_list(s, -1, 0);
 
-		/* If either of the booti commands fail, default to fastboot */
+		/* If any of the commands fail, default to fastboot */
 		run_command("fastboot", 0);
 
 		/* fastboot does not return, so we should never get to
