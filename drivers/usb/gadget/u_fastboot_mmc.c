@@ -85,11 +85,11 @@ static struct partition partitions[] = {
 	{ "bootloader", 512 },		/* Second stage bootloader */
 	{ "misc", 128 },		/* Rserved for internal purpose */
 	{ "-", 128 },			/* Reserved */
-	{ "recovery", 8*1024 },		/* Recovery partition  */
-	{ "boot", 8*1024 },		/* Partition contains kernel + ramdisk images */
+	{ "recovery", 16*1024 },	/* Recovery partition  */
+	{ "boot", 16*1024 },		/* Partition contains kernel + ramdisk images */
 	{ "system", 512*1024 },		/* Android file system */
 	{ "cache", 256*1024 },		/* Store Application Cache */
-	{ "userdata", 1047*1024 },	/* User data */
+	{ "userdata", 1024*1024 },	/* User data */
 	{ "media", 0 },			/* Media files */
 	{ 0, 0 },
 };
